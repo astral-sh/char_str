@@ -1296,7 +1296,10 @@ impl FromIterator<String> for LeanString {
 
 impl FromIterator<LeanString> for LeanString {
     fn from_iter<T: IntoIterator<Item = LeanString>>(iter: T) -> Self {
-        let mut buf = LeanString::new();
+        let mut iter = iter.into_iter();
+        let Some(mut buf) = iter.next() else {
+            return LeanString::new();
+        };
         buf.extend(iter);
         buf
     }

@@ -734,3 +734,41 @@ fn from_iter_drops_prefixed_reserved_buffer_on_panic() {
     let result = std::panic::catch_unwind(|| PanickingIterator.collect::<LeanString>());
     assert!(result.is_err());
 }
+
+#[test]
+fn from_iter_owned_lean_strings_reuses_first() {
+    let text = "abcdefghijklmnopqrstuvwxyz012345";
+
+    let s = LeanString::from(text);
+    let s_ptr = s.as_ptr();
+    let one: LeanString = [s].into_iter().collect();
+    assert_eq!(one, "abcdefghijklmnopqrstuvwxyz012345");
+    assert_eq!(one.as_ptr(), s_ptr);
+
+    let mut s = LeanString::with_capacity(128);
+    s.push_str("abcdefghijklmnopqrstuvwxyz012345");
+    let s_ptr = s.as_ptr();
+    let tow: LeanString = [s, LeanString::from("6789")].into_iter().collect();
+    assert_eq!(tow, text.to_owned() + "6789");
+    assert_eq!(tow.as_ptr(), s_ptr);
+    assert_eq!(tow.capacity(), 128);
+}
+
+#[test]
+fn from_iter_owned_lean_strings_detaches_shared_first() {
+    let s = LeanString::from("abcdefghijklmnopqrstuvwxyz012345");
+    let cloned = s.clone();
+    let clonded_ptr = cloned.as_ptr();
+    let collected: LeanString = [s, LeanString::from("6789")].into_iter().collect();
+    assert_eq!(cloned, "abcdefghijklmnopqrstuvwxyz012345");
+    assert_eq!(cloned.as_ptr(), clonded_ptr);
+    assert_eq!(collected, "abcdefghijklmnopqrstuvwxyz0123456789");
+    assert_ne!(collected.as_ptr(), clonded_ptr);
+}
+
+#[test]
+fn from_iter_no_owned_lean_strings_is_empty_inline() {
+    let collected: LeanString = core::iter::empty::<LeanString>().collect();
+    assert!(collected.is_empty());
+    assert!(!collected.is_heap_allocated());
+}
