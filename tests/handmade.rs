@@ -673,3 +673,42 @@ fn extend_char() {
     s.extend("world!".chars());
     assert_eq!(s, "Hello, world!");
 }
+
+#[test]
+#[cfg_attr(not(panic = "unwind"), ignore = "test requires unwinding support")]
+fn from_iter_drops_reserved_buffer_on_panic() {
+    struct PanickingIterator;
+
+    impl Iterator for PanickingIterator {
+        type Item = char;
+        fn next(&mut self) -> Option<Self::Item> {
+            panic!("iterator panic");
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            (17, Some(17))
+        }
+    }
+
+    let result = std::panic::catch_unwind(|| PanickingIterator.collect::<LeanString>());
+    assert!(result.is_err());
+}
+
+#[test]
+#[cfg(target_pointer_width = "32")]
+#[cfg_attr(not(panic = "unwind"), ignore = "test requires unwinding support")]
+fn from_iter_drops_prefixed_reserved_buffer_on_panic() {
+    struct PanickingIterator;
+
+    impl Iterator for PanickingIterator {
+        type Item = char;
+        fn next(&mut self) -> Option<Self::Item> {
+            panic!("iterator panic");
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            (CAPACITY_WITH_HEAP_LENGTH_LAYOUT, Some(CAPACITY_WITH_HEAP_LENGTH_LAYOUT))
+        }
+    }
+
+    let result = std::panic::catch_unwind(|| PanickingIterator.collect::<LeanString>());
+    assert!(result.is_err());
+}
