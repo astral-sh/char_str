@@ -2,6 +2,21 @@
 
 <!-- Ref: https://keepachangelog.com/ -->
 
+## [0.6.1] - 2026-07-08
+
+Most of the fixes in this release were contributed by [@charliermarsh](https://github.com/charliermarsh). Thank you!
+
+### Fixed
+
+- Several 32-bit correctness bugs: heap length tagging on big-endian targets, and heap base recovery from capacity. ([#4](https://github.com/ryota2357/lean_string/pull/4))
+- Undefined behavior from references to uninitialized capacity, and to invalid UTF-8 during `retain` and `remove`.
+- Memory leaks in `split_off` and `FromIterator` on early exit.
+- Shared buffers are now shrunk to their exact capacity.
+
+### Changed
+
+- `FromIterator<LeanString>` reuses the first one, improving performance.
+
 ## [0.6.0] - 2026-04-12
 
 ### Added
@@ -81,6 +96,7 @@ Initial release.
 - Optional `serde` and `arbitrary` support.
 - `Send` and `Sync` implementations, verified with `loom` and `miri`.
 
+[0.6.1]: https://github.com/ryota2357/lean_string/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/ryota2357/lean_string/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/ryota2357/lean_string/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/ryota2357/lean_string/compare/v0.5.1...v0.5.2
