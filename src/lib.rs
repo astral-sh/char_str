@@ -525,12 +525,11 @@ impl LeanString {
     ///
     /// # Panics
     ///
-    /// This method does not clone and panics the [`LeanString`] **without all** of following conditions are
-    /// true:
+    /// On 32-bit architectures, this method needs to clone the [`LeanString`] under both of the
+    /// following conditions, and may panic if that allocation fails:
     ///
-    /// - 32-bit architecture
     /// - The [`LeanString`] is not unique.
-    /// - The length of the [`LeanString`] is greater than `2^26 - 1`.
+    /// - Its length is greater than `2^24 - 2`.
     ///
     /// If you want to handle such a problem manually, use [`LeanString::try_pop()`].
     ///

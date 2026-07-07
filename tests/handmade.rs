@@ -2,6 +2,9 @@ use lean_string::LeanString;
 
 const INLINE_LIMIT: usize = size_of::<LeanString>();
 
+#[cfg(target_pointer_width = "32")]
+const CAPACITY_WITH_HEAP_LENGTH_LAYOUT: usize = (1 << 24) - 1;
+
 #[test]
 fn new_empty() {
     assert_eq!(LeanString::new(), "");
@@ -12,6 +15,28 @@ fn new_empty() {
     assert_eq!(s.len(), 0);
     assert!(!s.is_heap_allocated());
     assert_eq!(s.capacity(), INLINE_LIMIT);
+}
+
+#[cfg(target_pointer_width = "32")]
+#[test]
+fn drop_large_capacity_with_inline_length() {
+    let string = LeanString::with_capacity(CAPACITY_WITH_HEAP_LENGTH_LAYOUT);
+    assert_eq!(string.len(), 0);
+    assert_eq!(string.capacity(), CAPACITY_WITH_HEAP_LENGTH_LAYOUT);
+    drop(string);
+}
+
+#[cfg(target_pointer_width = "32")]
+#[test]
+fn realloc_large_capacity_with_inline_length() {
+    let mut string = LeanString::new();
+    string.reserve(CAPACITY_WITH_HEAP_LENGTH_LAYOUT);
+    assert_eq!(string.len(), 0);
+    assert_eq!(string.capacity(), CAPACITY_WITH_HEAP_LENGTH_LAYOUT);
+
+    string.reserve(CAPACITY_WITH_HEAP_LENGTH_LAYOUT + 1);
+    assert_eq!(string.len(), 0);
+    assert_eq!(string.capacity(), CAPACITY_WITH_HEAP_LENGTH_LAYOUT + 1);
 }
 
 #[test]

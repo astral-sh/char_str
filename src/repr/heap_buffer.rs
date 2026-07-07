@@ -348,7 +348,7 @@ impl HeapBuffer {
 
     unsafe fn allocation(&self) -> *mut u8 {
         unsafe {
-            if self.len.is_heap() {
+            if is_len_heap_layout(self.header().capacity) {
                 cold_path();
                 self.ptr.as_ptr().cast::<u8>().sub(Self::header_offset()).sub(size_of::<usize>())
             } else {
@@ -457,6 +457,7 @@ mod internal {
     }
 
     #[cfg_attr(target_pointer_width = "64", allow(unused_variables))]
+    #[inline(always)]
     pub(super) fn is_len_heap_layout(capacity: Capacity) -> bool {
         #[cfg(target_pointer_width = "64")]
         return false;
