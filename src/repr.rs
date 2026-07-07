@@ -343,24 +343,27 @@ impl Repr {
         // We will modify the buffer, we need to make sure it.
         self.ensure_modifiable()?;
 
-        // SAFETY:
-        // - We just made sure that the buffer is unique and modifiable (= not StaticBuffer).
-        // - We contracted that we can split self at `idx`.
-        let substr = unsafe { &mut self.as_str_mut()[idx..] };
+        // SAFETY: `ensure_modifiable` guarantees that the buffer is not StaticBuffer and that
+        // a heap buffer is unique.
+        let ptr = unsafe { self.as_mut_ptr() };
 
         // Get the char we want to remove
-        // SAFETY: We contracted that `idx` is less than `len`, so `substr` has at least one char.
-        let ch = unsafe { substr.chars().next().unwrap_unchecked() };
+        // SAFETY:
+        // - `idx < len`, and `ptr` is valid for `len` initialized bytes.
+        // - `idx` is a character boundary, so the nonempty suffix is valid UTF-8.
+        let ch = unsafe {
+            let suffix = slice::from_raw_parts(ptr.add(idx), len - idx);
+            str::from_utf8_unchecked(suffix).chars().next().unwrap_unchecked()
+        };
         let ch_len = ch.len_utf8();
 
         // Remove the char by shifting the rest of the string to the left.
-        // SAFETY: Both `src_ptr` and `dst_ptr` are valid for reads of `bytes_count` bytes, and are
-        // properly aligned.
+        // SAFETY:
+        // - Both ranges are within the initialized `0..len` bytes, and `ptr::copy` permits them to
+        //   overlap.
+        // - Removing a complete character leaves valid UTF-8 in `0..len - ch_len`.
         unsafe {
-            let dst_ptr = substr.as_mut_ptr();
-            let src_ptr = dst_ptr.add(ch_len);
-            let bytes_count = substr.len() - ch_len;
-            ptr::copy(src_ptr, dst_ptr, bytes_count);
+            ptr::copy(ptr.add(idx + ch_len), ptr.add(idx), len - idx - ch_len);
             self.set_len(len - ch_len);
         }
 
@@ -383,22 +386,32 @@ impl Repr {
 
         let len = self.len();
         let mut g = SetLenOnDrop { self_: self, src_idx: 0, dst_idx: 0 };
-        let str = unsafe { g.self_.as_str_mut() };
+
+        // SAFETY: `ensure_modifiable` guarantees that the buffer is not StaticBuffer and that
+        // a heap buffer is unique.
+        let ptr = unsafe { g.self_.as_mut_ptr() };
 
         while g.src_idx < len {
-            // SAFETY: `g.src_idx` is positive-or-zero and less that len so the `get_unchecked` is
-            // in bound. `self` is valid UTF-8 like string and the returned slice starts at a
-            // unicode code point so the `Chars` always return one character.
-            let ch = unsafe { str.get_unchecked(g.src_idx..len).chars().next().unwrap_unchecked() };
+            // SAFETY:
+            // - `g.src_idx < len`, and `ptr` is valid for `len` initialized bytes.
+            // - Previous writes end at or before `g.src_idx`, so the untouched suffix remains
+            //   valid UTF-8 and starts on a character boundary.
+            let ch = unsafe {
+                let suffix = slice::from_raw_parts(ptr.add(g.src_idx), len - g.src_idx);
+                str::from_utf8_unchecked(suffix).chars().next().unwrap_unchecked()
+            };
             let ch_len = ch.len_utf8();
 
             if predicate(ch) {
-                // SAFETY: `g.dst_idx` represents a valid code points, don't split a char.
-                let dst_slice = unsafe {
-                    let dst_ptr = str.as_mut_ptr().add(g.dst_idx);
-                    slice::from_raw_parts_mut(dst_ptr, ch_len)
-                };
-                ch.encode_utf8(dst_slice);
+                if g.dst_idx != g.src_idx {
+                    // SAFETY:
+                    // - Both ranges are within the initialized `0..len` bytes.
+                    // - The source is the UTF-8 encoding of `ch`, and `g.dst_idx` is a character
+                    //   boundary. `ptr::copy` permits the ranges to overlap.
+                    unsafe {
+                        ptr::copy(ptr.add(g.src_idx), ptr.add(g.dst_idx), ch_len);
+                    }
+                }
                 g.dst_idx += ch_len;
             }
             g.src_idx += ch_len;
@@ -629,21 +642,6 @@ impl Repr {
             ptr
         } else {
             self as *mut _ as *mut u8
-        }
-    }
-
-    /// Gets a mutable str of length buffer.
-    //
-    /// # Safety
-    /// - The buffer is not StaticBuffer
-    /// - If the buffer is HeapBuffer, it must be unique.
-    unsafe fn as_str_mut(&mut self) -> &mut str {
-        // SAFETY: A `Repr` contains valid UTF-8 bytes from `0..len`
-        unsafe {
-            let len = self.len();
-            let ptr = self.as_mut_ptr();
-            let slice = slice::from_raw_parts_mut(ptr, len);
-            str::from_utf8_unchecked_mut(slice)
         }
     }
 
