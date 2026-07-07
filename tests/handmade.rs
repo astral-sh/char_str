@@ -700,7 +700,6 @@ fn extend_char() {
 #[cfg_attr(not(panic = "unwind"), ignore = "test requires unwinding support")]
 fn from_iter_drops_reserved_buffer_on_panic() {
     struct PanickingIterator;
-
     impl Iterator for PanickingIterator {
         type Item = char;
         fn next(&mut self) -> Option<Self::Item> {
@@ -720,7 +719,6 @@ fn from_iter_drops_reserved_buffer_on_panic() {
 #[cfg_attr(not(panic = "unwind"), ignore = "test requires unwinding support")]
 fn from_iter_drops_prefixed_reserved_buffer_on_panic() {
     struct PanickingIterator;
-
     impl Iterator for PanickingIterator {
         type Item = char;
         fn next(&mut self) -> Option<Self::Item> {
