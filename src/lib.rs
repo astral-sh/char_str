@@ -24,6 +24,9 @@ use std::ffi::OsStr;
 mod repr;
 use repr::Repr;
 
+mod lean_str;
+pub use lean_str::LeanStr;
+
 mod errors;
 pub use errors::*;
 
@@ -44,6 +47,10 @@ const _: () = {
 };
 
 impl LeanString {
+    pub(crate) const fn from_repr(repr: Repr) -> Self {
+        Self(repr)
+    }
+
     /// Creates a new empty [`LeanString`].
     ///
     /// Same as [`String::new()`], this will not allocate on the heap.
@@ -59,6 +66,13 @@ impl LeanString {
     #[inline]
     pub const fn new() -> Self {
         LeanString(Repr::new())
+    }
+
+    /// Converts this value into an immutable, exactly allocated [`LeanStr`].
+    #[inline]
+    pub fn freeze(mut self) -> LeanStr {
+        self.0.shrink_to(0).unwrap_with_msg();
+        LeanStr::from_repr(core::mem::replace(&mut self.0, Repr::new()))
     }
 
     /// Creates a new [`LeanString`] from a `&'static str`.
@@ -938,14 +952,7 @@ impl LeanString {
     /// ```
     #[inline]
     pub fn clear(&mut self) {
-        if self.0.is_unique() {
-            // SAFETY:
-            // - `self` is unique.
-            // - 0 bytes is always valid UTF-8, and initialized.
-            unsafe { self.0.set_len(0) }
-        } else {
-            self.0.replace_inner(Repr::new());
-        }
+        self.0.clear().unwrap_with_msg();
     }
 
     /// Returns whether the [`LeanString`] is heap-allocated.

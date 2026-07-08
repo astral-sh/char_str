@@ -226,8 +226,9 @@ pub enum LastByte {
     Length14 = 0xCE,
     Length15 = 0xCF,
 
-    HeapMarker = 0xD0,
-    StaticMarker = 0xD1,
+    ExactHeapMarker = 0xD0,
+    HeapMarker = 0xD1,
+    StaticMarker = 0xD2,
 }
 
 const _: () = {
