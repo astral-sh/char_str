@@ -43,6 +43,33 @@ fn freeze_and_thaw() {
 }
 
 #[test]
+fn clear_unique_thawed_string_releases_exact_storage() {
+    let mut thawed =
+        LeanStr::from("a frozen string longer than the inline limit").into_lean_string();
+
+    thawed.clear();
+
+    assert!(thawed.is_empty());
+    assert_eq!(thawed.capacity(), INLINE_LIMIT);
+    assert!(!thawed.is_heap_allocated());
+}
+
+#[test]
+fn clear_shared_thawed_string_preserves_frozen_clone() {
+    let frozen = LeanStr::from("a frozen string longer than the inline limit");
+    let shared = frozen.clone();
+    let mut thawed = frozen.into_lean_string();
+
+    thawed.clear();
+
+    assert!(thawed.is_empty());
+    assert_eq!(thawed.capacity(), INLINE_LIMIT);
+    assert!(!thawed.is_heap_allocated());
+    assert_eq!(shared, "a frozen string longer than the inline limit");
+    assert!(shared.is_heap_allocated());
+}
+
+#[test]
 fn collect_freezes_builder() {
     let frozen: LeanStr = "a string longer than the inline limit".chars().collect();
 

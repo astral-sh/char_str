@@ -917,14 +917,15 @@ impl LeanString {
         Ok(other)
     }
 
-    /// Reduces the length of the [`LeanString`] to zero.
+    /// Reduces the length of the [`LeanString`] to zero without allocating.
     ///
-    /// If the [`LeanString`] is unique, this method will not change the capacity.
-    /// Otherwise, creates a new unique [`LeanString`] without heap allocation.
+    /// If the [`LeanString`] has a unique growable buffer, this method will not change the
+    /// capacity. Exact and shared heap buffers are released, leaving an empty inline
+    /// [`LeanString`].
     ///
     /// # Examples
     ///
-    /// ## unique
+    /// ## unique growable buffer
     ///
     /// ```
     /// # use lean_string::LeanString;
@@ -937,7 +938,7 @@ impl LeanString {
     /// assert_eq!(s.capacity(), 38);
     /// ```
     ///
-    /// ## not unique
+    /// ## shared growable buffer
     ///
     /// ```
     /// # use lean_string::LeanString;
@@ -952,7 +953,7 @@ impl LeanString {
     /// ```
     #[inline]
     pub fn clear(&mut self) {
-        self.0.clear().unwrap_with_msg();
+        self.0.clear();
     }
 
     /// Returns whether the [`LeanString`] is heap-allocated.

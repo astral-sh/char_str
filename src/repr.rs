@@ -585,16 +585,10 @@ impl Repr {
     }
 
     #[inline]
-    pub(crate) fn clear(&mut self) -> Result<(), ReserveError> {
+    pub(crate) fn clear(&mut self) {
         if self.is_exact_heap_buffer() {
-            // A unique exact buffer becomes growable so that its old length remains available as
-            // its capacity. A shared buffer can release this handle without preserving capacity.
-            if self.is_unique() {
-                let next = Repr::from_heap(HeapBuffer::with_capacity(self.len())?);
-                self.replace_inner(next);
-            } else {
-                self.replace_inner(Repr::new());
-            }
+            // Exact buffers do not store a capacity that can be retained after their length changes.
+            self.replace_inner(Repr::new());
         } else if self.is_unique() {
             // SAFETY:
             // - `self` is unique.
@@ -604,7 +598,6 @@ impl Repr {
         } else {
             self.replace_inner(Repr::new());
         }
-        Ok(())
     }
 
     #[inline]
