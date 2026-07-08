@@ -163,6 +163,7 @@ impl HeapBuffer {
 
     /// # Safety
     /// - The buffer must be unique. (HeapBuffer::is_unique() == true)
+    /// - The buffer must be growable. (`HeapBuffer::is_exact() == false`)
     /// - `new_capacity` must be greater than or equal to the current string length.
     pub(super) unsafe fn realloc(&mut self, new_capacity: usize) -> Result<(), ReserveError> {
         debug_assert!(!self.is_exact());
@@ -318,6 +319,7 @@ impl HeapBuffer {
     /// # Safety
     /// - `len` bytes in the buffer must be valid UTF-8.
     /// - `len` must be less than or equal to the capacity.
+    /// - The buffer must be growable. (`HeapBuffer::is_exact() == false`)
     /// - If `len` is stored on the heap, the buffer must be unique.
     pub(super) unsafe fn set_len(&mut self, len: usize) {
         debug_assert!(!self.is_exact());
