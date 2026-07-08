@@ -69,10 +69,31 @@ impl LeanString {
     }
 
     /// Converts this value into an immutable, exactly allocated [`LeanStr`].
+    ///
+    /// Growable heap storage may require a new exactly sized allocation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if allocating the exactly sized buffer fails. To handle allocation failure, use
+    /// [`LeanString::try_freeze()`].
     #[inline]
-    pub fn freeze(mut self) -> LeanStr {
-        self.0.shrink_to(0).unwrap_with_msg();
-        LeanStr::from_repr(core::mem::replace(&mut self.0, Repr::new()))
+    pub fn freeze(self) -> LeanStr {
+        self.try_freeze().unwrap_with_msg()
+    }
+
+    /// Tries to convert this value into an immutable, exactly allocated [`LeanStr`].
+    ///
+    /// Inline, static, and already exact storage do not allocate. Growable heap storage may
+    /// require a new exactly sized allocation.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ReserveError`] if allocating the exactly sized buffer fails. Because this
+    /// method consumes `self`, the original [`LeanString`] is dropped on failure.
+    #[inline]
+    pub fn try_freeze(mut self) -> Result<LeanStr, ReserveError> {
+        self.0.shrink_to(0)?;
+        Ok(LeanStr::from_repr(core::mem::replace(&mut self.0, Repr::new())))
     }
 
     /// Creates a new [`LeanString`] from a `&'static str`.

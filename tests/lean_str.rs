@@ -43,6 +43,19 @@ fn freeze_and_thaw() {
 }
 
 #[test]
+fn try_freeze_compacts_growable_storage() {
+    let text = "a string longer than the inline limit";
+    let mut string = LeanString::with_capacity(128);
+    string.push_str(text);
+
+    let frozen = string.try_freeze().unwrap();
+    let thawed = frozen.into_lean_string();
+
+    assert_eq!(thawed, text);
+    assert_eq!(thawed.capacity(), thawed.len());
+}
+
+#[test]
 fn clear_unique_thawed_string_releases_exact_storage() {
     let mut thawed =
         LeanStr::from("a frozen string longer than the inline limit").into_lean_string();
