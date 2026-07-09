@@ -266,7 +266,7 @@ impl Eq for CharStr {}
 impl PartialEq for CharStr {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.as_str() == other.as_str()
+        self.0.content_eq(&other.0)
     }
 }
 
@@ -315,21 +315,21 @@ impl PartialEq<CharStr> for String {
 impl PartialEq<CharString> for CharStr {
     #[inline]
     fn eq(&self, other: &CharString) -> bool {
-        self.as_str() == other.as_str()
+        self.0.content_eq(&other.0)
     }
 }
 
 impl PartialEq<CharStr> for CharString {
     #[inline]
     fn eq(&self, other: &CharStr) -> bool {
-        self.as_str() == other.as_str()
+        self.0.content_eq(&other.0)
     }
 }
 
 impl Ord for CharStr {
     #[inline]
     fn cmp(&self, other: &Self) -> cmp::Ordering {
-        self.as_str().cmp(other.as_str())
+        self.0.content_cmp(&other.0)
     }
 }
 

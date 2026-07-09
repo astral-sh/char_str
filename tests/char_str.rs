@@ -28,6 +28,41 @@ fn clone_shares_heap_storage() {
     let two = one.clone();
 
     assert!(core::ptr::eq(one.as_ptr(), two.as_ptr()));
+    assert_eq!(one, two);
+    assert_eq!(one.cmp(&two), core::cmp::Ordering::Equal);
+}
+
+#[test]
+fn comparisons_with_shared_char_string_storage() {
+    let frozen = CharStr::from_static_str("a static string longer than the inline limit");
+    let thawed = frozen.clone().into_char_string();
+
+    assert!(core::ptr::eq(frozen.as_ptr(), thawed.as_ptr()));
+    assert_eq!(frozen, thawed);
+    assert_eq!(thawed, frozen);
+}
+
+#[test]
+fn comparisons_with_shared_storage_respect_length() {
+    let frozen = CharStr::from_static_str("a static string longer than the inline limit");
+    let mut thawed = frozen.clone().into_char_string();
+    thawed.truncate(frozen.len() - 1);
+
+    assert!(core::ptr::eq(frozen.as_ptr(), thawed.as_ptr()));
+    assert_ne!(frozen, thawed);
+    assert_ne!(thawed, frozen);
+}
+
+#[test]
+fn comparisons_fall_back_to_content() {
+    let one = CharStr::from("a string longer than the inline limit");
+    let equal = CharStr::from("a string longer than the inline limit");
+    let greater = CharStr::from("b string longer than the inline limit");
+
+    assert!(!core::ptr::eq(one.as_ptr(), equal.as_ptr()));
+    assert_eq!(one, equal);
+    assert_eq!(one.cmp(&equal), core::cmp::Ordering::Equal);
+    assert!(one < greater);
 }
 
 #[test]
