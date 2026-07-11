@@ -1,8 +1,8 @@
 use core::hint::black_box;
 use std::time::Duration;
 
+use char_str::{CharStr, CharString};
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use lean_string::{LeanStr, LeanString};
 
 const STRING_LENGTHS: [usize; 10] = [11, 12, 13, 15, 16, 17, 24, 32, 48, 64];
 const VECTOR_LEN: usize = 16_384;
@@ -18,7 +18,7 @@ fn construction(c: &mut Criterion) {
             b.iter(|| {
                 black_box(
                     (0..VECTOR_LEN)
-                        .map(|_| LeanString::from(black_box(text.as_str())))
+                        .map(|_| CharString::from(black_box(text.as_str())))
                         .collect::<Vec<_>>(),
                 )
             });
@@ -33,7 +33,7 @@ fn clone_drop(c: &mut Criterion) {
 
     for len in STRING_LENGTHS {
         let text = "a".repeat(len);
-        let values = (0..VECTOR_LEN).map(|_| LeanString::from(text.as_str())).collect::<Vec<_>>();
+        let values = (0..VECTOR_LEN).map(|_| CharString::from(text.as_str())).collect::<Vec<_>>();
 
         clone_drop.throughput(Throughput::Elements(VECTOR_LEN as u64));
         clone_drop.bench_function(BenchmarkId::from_parameter(len), |b| {
@@ -45,7 +45,7 @@ fn clone_drop(c: &mut Criterion) {
 }
 
 fn immutable_construction(c: &mut Criterion) {
-    let mut construction = c.benchmark_group("heap_layout/lean_str_construction");
+    let mut construction = c.benchmark_group("heap_layout/char_str_construction");
 
     for len in STRING_LENGTHS {
         let text = "a".repeat(len);
@@ -55,7 +55,7 @@ fn immutable_construction(c: &mut Criterion) {
             b.iter(|| {
                 black_box(
                     (0..VECTOR_LEN)
-                        .map(|_| LeanStr::from(black_box(text.as_str())))
+                        .map(|_| CharStr::from(black_box(text.as_str())))
                         .collect::<Vec<_>>(),
                 )
             });
@@ -66,11 +66,11 @@ fn immutable_construction(c: &mut Criterion) {
 }
 
 fn immutable_clone_drop(c: &mut Criterion) {
-    let mut clone_drop = c.benchmark_group("heap_layout/lean_str_clone_drop");
+    let mut clone_drop = c.benchmark_group("heap_layout/char_str_clone_drop");
 
     for len in STRING_LENGTHS {
         let text = "a".repeat(len);
-        let values = (0..VECTOR_LEN).map(|_| LeanStr::from(text.as_str())).collect::<Vec<_>>();
+        let values = (0..VECTOR_LEN).map(|_| CharStr::from(text.as_str())).collect::<Vec<_>>();
 
         clone_drop.throughput(Throughput::Elements(VECTOR_LEN as u64));
         clone_drop.bench_function(BenchmarkId::from_parameter(len), |b| {
@@ -86,7 +86,7 @@ fn traversal(c: &mut Criterion) {
 
     for len in STRING_LENGTHS {
         let text = "a".repeat(len);
-        let values = (0..VECTOR_LEN).map(|_| LeanString::from(text.as_str())).collect::<Vec<_>>();
+        let values = (0..VECTOR_LEN).map(|_| CharString::from(text.as_str())).collect::<Vec<_>>();
 
         traversal.throughput(Throughput::Bytes((VECTOR_LEN * len) as u64));
         traversal.bench_function(BenchmarkId::from_parameter(len), |b| {

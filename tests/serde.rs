@@ -1,7 +1,7 @@
 // from: https://github.com/ParkMyCar/compact_str/blob/193d13eaa5a92b3c39c2f7289dc44c95f37c80d1/compact_str/src/features/serde.rs
 #![cfg(feature = "serde")]
 
-use lean_string::{LeanStr, LeanString};
+use char_str::{CharStr, CharString};
 use proptest::property_test;
 use serde::{Deserialize, Serialize};
 
@@ -13,10 +13,10 @@ struct PersonString {
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
-struct PersonLeanString {
-    name: LeanString,
-    phones: Vec<LeanString>,
-    address: Option<LeanString>,
+struct PersonCharString {
+    name: CharString,
+    phones: Vec<CharString>,
+    address: Option<CharString>,
 }
 
 #[test]
@@ -30,10 +30,10 @@ fn test_roundtrip() {
         phones: phones.iter().map(|s| s.to_string()).collect(),
         address: address.as_ref().map(|s| s.to_string()),
     };
-    let compact = PersonLeanString {
+    let compact = PersonCharString {
         name: name.into(),
-        phones: phones.iter().map(|s| LeanString::from(*s)).collect(),
-        address: address.as_ref().map(|s| LeanString::from(*s)),
+        phones: phones.iter().map(|s| CharString::from(*s)).collect(),
+        address: address.as_ref().map(|s| CharString::from(*s)),
     };
 
     let std_json = serde_json::to_string(&std).unwrap();
@@ -43,7 +43,7 @@ fn test_roundtrip() {
     assert_eq!(std_json, compact_json);
 
     let std_de_compact: PersonString = serde_json::from_str(&compact_json).unwrap();
-    let compact_de_std: PersonLeanString = serde_json::from_str(&std_json).unwrap();
+    let compact_de_std: PersonCharString = serde_json::from_str(&std_json).unwrap();
 
     // we should be able to deserailze from the opposite, serialized, source
     assert_eq!(std_de_compact, std);
@@ -51,10 +51,10 @@ fn test_roundtrip() {
 }
 
 #[test]
-fn lean_str_roundtrip() {
-    let value = LeanStr::from("a frozen string longer than the inline limit");
+fn char_str_roundtrip() {
+    let value = CharStr::from("a frozen string longer than the inline limit");
     let serialized = serde_json::to_string(&value).unwrap();
-    let deserialized: LeanStr = serde_json::from_str(&serialized).unwrap();
+    let deserialized: CharStr = serde_json::from_str(&serialized).unwrap();
 
     assert_eq!(deserialized, value);
 }
@@ -64,10 +64,10 @@ fn lean_str_roundtrip() {
 fn proptest_roundtrip(name: String, phones: Vec<String>, address: Option<String>) {
     let std =
         PersonString { name: name.clone(), phones: phones.to_vec(), address: address.clone() };
-    let compact = PersonLeanString {
+    let compact = PersonCharString {
         name: name.into(),
-        phones: phones.iter().map(LeanString::from).collect(),
-        address: address.map(LeanString::from),
+        phones: phones.iter().map(CharString::from).collect(),
+        address: address.map(CharString::from),
     };
 
     let std_json = serde_json::to_string(&std).unwrap();
@@ -77,7 +77,7 @@ fn proptest_roundtrip(name: String, phones: Vec<String>, address: Option<String>
     assert_eq!(std_json, compact_json);
 
     let std_de_compact: PersonString = serde_json::from_str(&compact_json).unwrap();
-    let compact_de_std: PersonLeanString = serde_json::from_str(&std_json).unwrap();
+    let compact_de_std: PersonCharString = serde_json::from_str(&std_json).unwrap();
 
     // we should be able to deserailze from the opposite, serialized, source
     assert_eq!(std_de_compact, std);

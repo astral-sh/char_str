@@ -2,6 +2,13 @@
 
 <!-- Ref: https://keepachangelog.com/ -->
 
+## [0.0.1] - Unreleased
+
+### Changed
+
+- Forked `lean_string` as `char_str` for use in Ruff and ty.
+- Renamed `LeanString` to `CharString` and `LeanStr` to `CharStr`.
+
 ## [0.6.1] - 2026-07-08
 
 Most of the fixes in this release were contributed by [@charliermarsh](https://github.com/charliermarsh). Thank you!

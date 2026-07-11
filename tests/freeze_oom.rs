@@ -4,7 +4,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use lean_string::{LeanStr, LeanString, ReserveError};
+use char_str::{CharStr, CharString, ReserveError};
 
 struct FailNextAllocation;
 
@@ -47,7 +47,7 @@ fn fallible_heap_conversions_report_allocation_failure() {
     const TEXT: &str = "a string longer than the inline limit";
 
     // A unique growable allocation is converted to exact storage with `realloc`.
-    let mut string = LeanString::with_capacity(128);
+    let mut string = CharString::with_capacity(128);
     string.push_str(TEXT);
 
     FAIL_NEXT_REALLOCATION.store(true, Ordering::SeqCst);
@@ -57,7 +57,7 @@ fn fallible_heap_conversions_report_allocation_failure() {
     assert_eq!(result, Err(ReserveError));
 
     // A shared growable allocation is copied into a new exact allocation.
-    let string = LeanString::from(TEXT);
+    let string = CharString::from(TEXT);
     let growable = string.clone();
 
     FAIL_NEXT_ALLOCATION.store(true, Ordering::SeqCst);
@@ -68,20 +68,20 @@ fn fallible_heap_conversions_report_allocation_failure() {
     assert_eq!(growable, TEXT);
 
     // A unique exact allocation is converted to growable storage with `realloc`.
-    let frozen = LeanStr::from(TEXT);
+    let frozen = CharStr::from(TEXT);
 
     FAIL_NEXT_REALLOCATION.store(true, Ordering::SeqCst);
-    let result = frozen.try_into_lean_string();
+    let result = frozen.try_into_char_string();
     FAIL_NEXT_REALLOCATION.store(false, Ordering::SeqCst);
 
     assert_eq!(result, Err(ReserveError));
 
     // A shared exact allocation is copied into a new growable allocation.
-    let frozen = LeanStr::from(TEXT);
+    let frozen = CharStr::from(TEXT);
     let exact = frozen.clone();
 
     FAIL_NEXT_ALLOCATION.store(true, Ordering::SeqCst);
-    let result = frozen.try_into_lean_string();
+    let result = frozen.try_into_char_string();
     FAIL_NEXT_ALLOCATION.store(false, Ordering::SeqCst);
 
     assert_eq!(result, Err(ReserveError));
@@ -89,7 +89,7 @@ fn fallible_heap_conversions_report_allocation_failure() {
 
     // Joining directly into exact storage reports allocation failure.
     FAIL_NEXT_ALLOCATION.store(true, Ordering::SeqCst);
-    let result = LeanStr::try_join(&[TEXT, TEXT], ".");
+    let result = CharStr::try_join(&[TEXT, TEXT], ".");
     FAIL_NEXT_ALLOCATION.store(false, Ordering::SeqCst);
 
     assert_eq!(result, Err(ReserveError));

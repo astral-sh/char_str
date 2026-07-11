@@ -1,21 +1,21 @@
 use core::cell::Cell;
 
-use lean_string::{LeanStr, LeanString, ReserveError};
+use char_str::{CharStr, CharString, ReserveError};
 
-const INLINE_LIMIT: usize = size_of::<LeanStr>();
+const INLINE_LIMIT: usize = size_of::<CharStr>();
 
 #[test]
 fn size() {
-    assert_eq!(size_of::<LeanStr>(), 2 * size_of::<usize>());
-    assert_eq!(size_of::<Option<LeanStr>>(), size_of::<LeanStr>());
+    assert_eq!(size_of::<CharStr>(), 2 * size_of::<usize>());
+    assert_eq!(size_of::<Option<CharStr>>(), size_of::<CharStr>());
 }
 
 #[test]
 fn storage_kinds() {
-    let inline = LeanStr::from("x".repeat(INLINE_LIMIT));
-    let heap = LeanStr::from("x".repeat(INLINE_LIMIT + 1));
-    const STATIC: LeanStr =
-        LeanStr::from_static_str("a static string longer than the inline limit");
+    let inline = CharStr::from("x".repeat(INLINE_LIMIT));
+    let heap = CharStr::from("x".repeat(INLINE_LIMIT + 1));
+    const STATIC: CharStr =
+        CharStr::from_static_str("a static string longer than the inline limit");
 
     assert!(!inline.is_heap_allocated());
     assert!(heap.is_heap_allocated());
@@ -24,7 +24,7 @@ fn storage_kinds() {
 
 #[test]
 fn clone_shares_heap_storage() {
-    let one = LeanStr::from("a string longer than the inline limit");
+    let one = CharStr::from("a string longer than the inline limit");
     let two = one.clone();
 
     assert!(core::ptr::eq(one.as_ptr(), two.as_ptr()));
@@ -34,17 +34,17 @@ fn clone_shares_heap_storage() {
 fn concat_accepts_as_ref_str() {
     let slices = [String::from("prefix"), String::from("suffix")];
 
-    assert_eq!(LeanStr::concat(&slices), "prefixsuffix");
-    assert_eq!(LeanStr::try_concat(&slices).unwrap(), "prefixsuffix");
+    assert_eq!(CharStr::concat(&slices), "prefixsuffix");
+    assert_eq!(CharStr::try_concat(&slices).unwrap(), "prefixsuffix");
 }
 
 #[test]
 fn join_uses_smallest_storage_kind() {
-    let empty = LeanStr::join::<&str>(&[], ".");
+    let empty = CharStr::join::<&str>(&[], ".");
     let inline_text = "x".repeat(INLINE_LIMIT);
     let heap_text = "x".repeat(INLINE_LIMIT + 1);
-    let inline = LeanStr::join(&[&inline_text[..1], &inline_text[1..]], "");
-    let heap = LeanStr::try_join(&[&heap_text[..1], &heap_text[1..]], "").unwrap();
+    let inline = CharStr::join(&[&inline_text[..1], &inline_text[1..]], "");
+    let heap = CharStr::try_join(&[&heap_text[..1], &heap_text[1..]], "").unwrap();
 
     assert!(empty.is_empty());
     assert!(!empty.is_heap_allocated());
@@ -58,12 +58,12 @@ fn join_uses_smallest_storage_kind() {
 fn join_accepts_as_ref_str() {
     let slices = [String::from("package"), String::from("module"), String::from("name")];
 
-    assert_eq!(LeanStr::join(&slices, "."), "package.module.name");
+    assert_eq!(CharStr::join(&slices, "."), "package.module.name");
 }
 
 #[test]
 fn join_heap_storage_is_shared() {
-    let one = LeanStr::join(&["a string", "longer than", "the inline limit"], " ");
+    let one = CharStr::join(&["a string", "longer than", "the inline limit"], " ");
     let two = one.clone();
 
     assert!(core::ptr::eq(one.as_ptr(), two.as_ptr()));
@@ -96,8 +96,8 @@ fn try_join_rejects_inconsistent_as_ref_lengths() {
         calls: Cell::new(0),
     }];
 
-    assert_eq!(LeanStr::try_join(&grows_after_measurement, ""), Err(ReserveError));
-    assert_eq!(LeanStr::try_join(&shrinks_after_measurement, ""), Err(ReserveError));
+    assert_eq!(CharStr::try_join(&grows_after_measurement, ""), Err(ReserveError));
+    assert_eq!(CharStr::try_join(&shrinks_after_measurement, ""), Err(ReserveError));
 }
 
 #[test]
@@ -113,7 +113,7 @@ fn try_join_releases_heap_storage_if_as_ref_panics() {
 
     let slice = [PanicsOnSecondCall(Cell::new(false))];
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let _ = LeanStr::try_join(&slice, "");
+        let _ = CharStr::try_join(&slice, "");
     }));
 
     assert!(result.is_err());
@@ -121,13 +121,13 @@ fn try_join_releases_heap_storage_if_as_ref_panics() {
 
 #[test]
 fn shared_heap_conversions_copy_storage() {
-    let mut string = LeanString::with_capacity(128);
+    let mut string = CharString::with_capacity(128);
     string.push_str("a string longer than the inline limit");
     let growable = string.clone();
 
     let frozen = string.freeze();
     let shared = frozen.clone();
-    let mut thawed = frozen.into_lean_string();
+    let mut thawed = frozen.into_char_string();
     let thawed_ptr = thawed.as_ptr();
     thawed.push_str(" with more text");
 
@@ -141,11 +141,11 @@ fn shared_heap_conversions_copy_storage() {
 #[test]
 fn unique_heap_conversions_preserve_contents() {
     let text = "a string longer than the inline limit";
-    let mut string = LeanString::with_capacity(128);
+    let mut string = CharString::with_capacity(128);
     string.push_str(text);
 
     let frozen = string.try_freeze().unwrap();
-    let thawed = frozen.into_lean_string();
+    let thawed = frozen.into_char_string();
 
     assert_eq!(thawed, text);
     assert_eq!(thawed.capacity(), thawed.len());
@@ -153,33 +153,33 @@ fn unique_heap_conversions_preserve_contents() {
 
 #[test]
 fn inline_and_static_conversions_preserve_storage_kind() {
-    let inline = LeanString::from("short").freeze();
+    let inline = CharString::from("short").freeze();
     assert!(!inline.is_heap_allocated());
-    assert!(!inline.into_lean_string().is_heap_allocated());
+    assert!(!inline.into_char_string().is_heap_allocated());
 
     const TEXT: &str = "a static string longer than the inline limit";
-    let string = LeanString::from_static_str(TEXT);
+    let string = CharString::from_static_str(TEXT);
     let ptr = string.as_ptr();
     let frozen = string.freeze();
 
     assert!(!frozen.is_heap_allocated());
     assert!(core::ptr::eq(ptr, frozen.as_ptr()));
 
-    let thawed = frozen.into_lean_string();
+    let thawed = frozen.into_char_string();
     assert!(!thawed.is_heap_allocated());
     assert!(core::ptr::eq(ptr, thawed.as_ptr()));
 }
 
 #[test]
 fn heap_conversions_preserve_storage_for_short_contents() {
-    let string = LeanString::with_capacity(INLINE_LIMIT + 1);
+    let string = CharString::with_capacity(INLINE_LIMIT + 1);
     assert!(string.is_heap_allocated());
 
     let frozen = string.freeze();
     assert!(frozen.is_heap_allocated());
     assert!(frozen.is_empty());
 
-    let thawed = frozen.into_lean_string();
+    let thawed = frozen.into_char_string();
     assert!(thawed.is_heap_allocated());
     assert!(thawed.is_empty());
     assert_eq!(thawed.capacity(), 0);
@@ -188,7 +188,7 @@ fn heap_conversions_preserve_storage_for_short_contents() {
 #[test]
 fn clear_unique_thawed_string_retains_growable_storage() {
     let mut thawed =
-        LeanStr::from("a frozen string longer than the inline limit").into_lean_string();
+        CharStr::from("a frozen string longer than the inline limit").into_char_string();
     let capacity = thawed.capacity();
 
     thawed.clear();
@@ -200,9 +200,9 @@ fn clear_unique_thawed_string_retains_growable_storage() {
 
 #[test]
 fn clear_shared_thawed_string_preserves_frozen_clone() {
-    let frozen = LeanStr::from("a frozen string longer than the inline limit");
+    let frozen = CharStr::from("a frozen string longer than the inline limit");
     let shared = frozen.clone();
-    let mut thawed = frozen.into_lean_string();
+    let mut thawed = frozen.into_char_string();
     let capacity = thawed.capacity();
 
     thawed.clear();
@@ -217,7 +217,7 @@ fn clear_shared_thawed_string_preserves_frozen_clone() {
 #[test]
 fn shrink_to_fit_keeps_growable_heap_storage() {
     let text = "a string longer than the inline limit";
-    let mut string = LeanString::with_capacity(128);
+    let mut string = CharString::with_capacity(128);
     string.push_str(text);
 
     string.shrink_to_fit();
@@ -231,7 +231,7 @@ fn shrink_to_fit_keeps_growable_heap_storage() {
 
 #[test]
 fn collect_freezes_builder() {
-    let frozen: LeanStr = "a string longer than the inline limit".chars().collect();
+    let frozen: CharStr = "a string longer than the inline limit".chars().collect();
 
     assert_eq!(frozen, "a string longer than the inline limit");
     assert!(frozen.is_heap_allocated());

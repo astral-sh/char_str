@@ -1,24 +1,38 @@
-name: Release
+name: Publish to crates.io
 
 on:
   push:
     tags: ['v*']
 
+permissions: {}
+
 jobs:
   publish:
-    name: Publish
+    name: cargo publish
+    if: github.repository == 'astral-sh/char_str'
+    timeout-minutes: 10
     runs-on: ubuntu-latest
+    environment:
+      name: release
     permissions:
+      contents: read
       id-token: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Authenticate with crates.io
-        uses: rust-lang/crates-io-auth-action@b7e9a28eded4986ec6b1fa40eeee8f8f165559ec # v1.0.3
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: rust-lang/crates-io-auth-action@bbd81622f20ce9e2dd9622e3218b975523e45bbe # v1.0.4
         id: auth
-
-      - name: Publish
-        run: cargo publish
+      - name: Install Rust toolchain
+        run: rustup show
+      - name: Validate release tag
+        run: |
+          version="$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "char_str") | .version')"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "release tag $GITHUB_REF_NAME does not match char_str v$version" >&2
+            exit 1
+          fi
+      - name: Publish char_str
+        run: cargo publish --locked --package char_str
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
