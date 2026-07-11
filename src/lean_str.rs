@@ -9,8 +9,12 @@ use crate::{LeanString, Repr, ReserveError, UnwrapWithMsg};
 
 /// Compact, immutable, UTF-8 encoded owned string type.
 ///
-/// Short strings are stored inline. Long strings use an exactly-sized, reference-counted heap
-/// allocation, making clones cheap without retaining a capacity that can never be used.
+/// Values constructed directly store short strings inline. Long strings use an exactly-sized,
+/// reference-counted heap allocation without a capacity field, making clones cheap without
+/// retaining capacity that can never be used. Freezing a heap-allocated [`LeanString`] preserves
+/// the heap storage kind even when its current contents fit inline. Use
+/// [`LeanStr::into_lean_string`] to convert heap storage to the growable layout used by
+/// [`LeanString`].
 #[repr(transparent)]
 pub struct LeanStr(Repr);
 
@@ -73,13 +77,37 @@ impl LeanStr {
         self.0.is_heap_buffer()
     }
 
-    /// Converts this value into a mutable `LeanString` without copying.
+    /// Converts this value into a mutable [`LeanString`].
+    ///
+    /// Unique exact heap storage is converted to growable storage with `realloc`. Shared heap
+    /// storage is copied into a new growable allocation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if reallocating or copying heap storage fails. To handle allocation failure, use
+    /// [`LeanStr::try_into_lean_string`].
     #[inline]
-    pub fn into_lean_string(mut self) -> LeanString {
-        LeanString::from_repr(mem::replace(&mut self.0, Repr::new()))
+    pub fn into_lean_string(self) -> LeanString {
+        self.try_into_lean_string().unwrap_with_msg()
     }
 
-    pub(crate) const fn from_repr(repr: Repr) -> Self {
+    /// Tries to convert this value into a mutable [`LeanString`].
+    ///
+    /// Inline and static storage are transferred without reallocating. Unique exact heap storage
+    /// is converted with `realloc`, while shared heap storage is copied.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ReserveError`] if converting heap storage fails. Because this method consumes
+    /// `self`, the original [`LeanStr`] is dropped on failure.
+    #[inline]
+    pub fn try_into_lean_string(mut self) -> Result<LeanString, ReserveError> {
+        self.0.make_growable()?;
+        Ok(LeanString::from_repr(mem::replace(&mut self.0, Repr::new())))
+    }
+
+    pub(crate) fn from_repr(repr: Repr) -> Self {
+        debug_assert!(!repr.is_growable_heap_buffer());
         Self(repr)
     }
 }

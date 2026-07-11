@@ -26,10 +26,13 @@ Compact owned strings with mutable and immutable variants.
 - High API compatibility for `String`.
 - Supports `no_std` environment.
 
-`LeanStr` has the same two-word inline, static, and reference-counted representations, but is
-immutable. Its heap allocation is exact and stores only the reference count before the string
-bytes; it does not retain an unused capacity. Use `LeanString::freeze` after building a string, or
-construct a `LeanStr` directly when the final contents are already available.
+`LeanString` and `LeanStr` share the same two-word inline and static representations, but use
+different reference-counted heap layouts. Like `String` versus `str`, capacity belongs only to the
+mutable type: every `LeanString` heap allocation stores a capacity and is growable, while every
+`LeanStr` heap allocation is exact and stores only the reference count before the string bytes.
+Converting a unique heap allocation between the types uses `realloc`; converting shared heap
+storage allocates and copies. Use `LeanString::freeze` after building a string, or construct a
+`LeanStr` directly when the final contents are already available.
 
 ## Example
 

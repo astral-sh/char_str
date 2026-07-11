@@ -256,6 +256,113 @@ impl HeapBuffer {
         Ok(())
     }
 
+    /// Converts a unique growable allocation into an exact allocation.
+    ///
+    /// # Safety
+    ///
+    /// - The buffer must be unique. (`HeapBuffer::is_unique() == true`)
+    /// - The buffer must be growable. (`HeapBuffer::is_exact() == false`)
+    pub(super) unsafe fn realloc_into_exact(&mut self) -> Result<(), ReserveError> {
+        debug_assert!(!self.is_exact());
+        debug_assert!(self.is_unique());
+
+        let len = self.len();
+        let old_capacity = self.header().capacity;
+        let new_capacity = Capacity::new(len)?;
+        let new_len = TextLen::new_exact(len)?;
+        let old_layout = HeapBuffer::layout_from_capacity(old_capacity)?;
+        let new_layout = HeapBuffer::layout_from_len(len)?;
+        let old_len_prefix = if is_len_heap_layout(old_capacity) { size_of::<usize>() } else { 0 };
+        let new_len_prefix = if is_len_heap_layout(new_capacity) { size_of::<usize>() } else { 0 };
+
+        // SAFETY: `self` owns a live allocation described by `old_layout`.
+        let allocation = unsafe { self.allocation() };
+        // SAFETY: Both pointers lie within the current allocation. `ptr::copy` permits overlap,
+        // which is required because the exact data starts before the growable data.
+        let old_data =
+            unsafe { allocation.add(old_len_prefix + HeapBuffer::growable_header_offset()) };
+        let new_data =
+            unsafe { allocation.add(new_len_prefix + HeapBuffer::exact_header_offset()) };
+        unsafe { ptr::copy(old_data, new_data, len) };
+
+        // SAFETY:
+        // - `allocation` was allocated with `old_layout`.
+        // - `new_layout` has the same alignment and a nonzero size.
+        let new_allocation = unsafe { realloc(allocation, old_layout, new_layout.size()) };
+        if new_allocation.is_null() {
+            // `realloc` failure leaves the old allocation live. Restore the data and growable
+            // header before returning so `self` remains valid and can be dropped.
+            unsafe {
+                ptr::copy(new_data, old_data, len);
+                if old_len_prefix != 0 {
+                    ptr::write(allocation.cast(), len);
+                }
+                let header = allocation.add(old_len_prefix).cast::<Header>();
+                ptr::write(header, Header { capacity: old_capacity, count: AtomicUsize::new(1) });
+            }
+            return Err(ReserveError);
+        }
+
+        // SAFETY: `new_allocation` is a live allocation described by `new_layout`. The initialized
+        // string bytes were moved into the retained exact-layout prefix before shrinking.
+        unsafe {
+            if new_len_prefix != 0 {
+                ptr::write(new_allocation.cast(), len);
+            }
+            let header = new_allocation.add(new_len_prefix).cast::<ExactHeader>();
+            ptr::write(header, ExactHeader { count: AtomicUsize::new(1) });
+            let data = new_allocation.add(new_len_prefix + HeapBuffer::exact_header_offset());
+            self.ptr = NonNull::new_unchecked(data);
+        }
+        self.len = new_len;
+        Ok(())
+    }
+
+    /// Converts a unique exact allocation into a growable allocation with capacity equal to its
+    /// length.
+    ///
+    /// # Safety
+    ///
+    /// - The buffer must be unique. (`HeapBuffer::is_unique() == true`)
+    /// - The buffer must be exact. (`HeapBuffer::is_exact() == true`)
+    pub(super) unsafe fn realloc_into_growable(&mut self) -> Result<(), ReserveError> {
+        debug_assert!(self.is_exact());
+        debug_assert!(self.is_unique());
+
+        let len = self.len();
+        let capacity = Capacity::new(len)?;
+        let new_len = TextLen::new_growable(len)?;
+        let old_layout = HeapBuffer::layout_from_len(len)?;
+        let new_layout = HeapBuffer::layout_from_capacity(capacity)?;
+        let len_prefix = if is_len_heap_layout(capacity) { size_of::<usize>() } else { 0 };
+
+        // SAFETY: `self` owns a live allocation described by `old_layout`.
+        let allocation = unsafe { self.allocation() };
+        // SAFETY:
+        // - `allocation` was allocated with `old_layout`.
+        // - `new_layout` has the same alignment and a nonzero size.
+        let new_allocation = unsafe { realloc(allocation, old_layout, new_layout.size()) };
+        if new_allocation.is_null() {
+            return Err(ReserveError);
+        }
+
+        // SAFETY: The expanded allocation contains the old exact-layout bytes. Move the string to
+        // its growable offset before writing the larger header. `ptr::copy` permits overlap.
+        unsafe {
+            let old_data = new_allocation.add(len_prefix + HeapBuffer::exact_header_offset());
+            let new_data = new_allocation.add(len_prefix + HeapBuffer::growable_header_offset());
+            ptr::copy(old_data, new_data, len);
+            if len_prefix != 0 {
+                ptr::write(new_allocation.cast(), len);
+            }
+            let header = new_allocation.add(len_prefix).cast::<Header>();
+            ptr::write(header, Header { capacity, count: AtomicUsize::new(1) });
+            self.ptr = NonNull::new_unchecked(new_data);
+        }
+        self.len = new_len;
+        Ok(())
+    }
+
     /// Decrements the reference count. If this was the last reference, deallocates the buffer.
     ///
     /// # Safety
@@ -702,5 +809,48 @@ mod tests {
             exact.release();
             growable.release();
         }
+    }
+
+    #[test]
+    fn realloc_between_exact_and_growable_layouts() {
+        let text = "short multibyte text: é日";
+        let mut buffer = HeapBuffer::with_exact_capacity(text, 128).unwrap();
+
+        assert!(!buffer.is_exact());
+        assert_eq!(buffer.capacity(), 128);
+
+        // SAFETY: `buffer` is the only reference to this growable allocation.
+        unsafe { buffer.realloc_into_exact().unwrap() };
+
+        assert!(buffer.is_exact());
+        assert_eq!(buffer.as_str(), text);
+        assert_eq!(buffer.capacity(), text.len());
+
+        // SAFETY: `buffer` is the only reference to this exact allocation.
+        unsafe { buffer.realloc_into_growable().unwrap() };
+
+        assert!(!buffer.is_exact());
+        assert_eq!(buffer.as_str(), text);
+        assert_eq!(buffer.capacity(), text.len());
+
+        // SAFETY: `buffer` is the only live reference and is not accessed afterward.
+        unsafe { buffer.release() };
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    #[test]
+    fn realloc_into_exact_removes_heap_length_prefix() {
+        let mut buffer = HeapBuffer::with_exact_capacity("short", 1 << 24).unwrap();
+        assert!(buffer.has_heap_len_layout());
+
+        // SAFETY: `buffer` is the only reference to this growable allocation.
+        unsafe { buffer.realloc_into_exact().unwrap() };
+
+        assert!(buffer.is_exact());
+        assert!(!buffer.has_heap_len_layout());
+        assert_eq!(buffer.as_str(), "short");
+
+        // SAFETY: `buffer` is the only live reference and is not accessed afterward.
+        unsafe { buffer.release() };
     }
 }
