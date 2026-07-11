@@ -1004,6 +1004,11 @@ impl CharString {
     pub fn is_heap_allocated(&self) -> bool {
         self.0.is_heap_buffer()
     }
+
+    #[cfg(feature = "get-size")]
+    pub(crate) fn heap_allocation_size(&self) -> usize {
+        self.0.heap_allocation_size()
+    }
 }
 
 /// A [`Clone`] implementation for [`CharString`].

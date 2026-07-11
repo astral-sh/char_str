@@ -679,6 +679,16 @@ impl Repr {
         self.last_byte() == LastByte::HeapMarker as u8
     }
 
+    #[cfg(feature = "get-size")]
+    pub(crate) fn heap_allocation_size(&self) -> usize {
+        if self.is_heap_buffer() {
+            // SAFETY: The discriminant was checked above.
+            unsafe { self.as_heap_buffer() }.allocation_size()
+        } else {
+            0
+        }
+    }
+
     #[inline(always)]
     const fn is_static_buffer(&self) -> bool {
         self.last_byte() == LastByte::StaticMarker as u8
