@@ -1,4 +1,4 @@
-use crate::{LeanStr, LeanString};
+use crate::{CharStr, CharString};
 use core::{fmt, str};
 use serde_core::{
     de::{Deserialize, Deserializer, Error, Unexpected, Visitor},
@@ -6,7 +6,7 @@ use serde_core::{
 };
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-impl Serialize for LeanString {
+impl Serialize for CharString {
     #[inline]
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self.as_str().serialize(serializer)
@@ -14,43 +14,43 @@ impl Serialize for LeanString {
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-impl<'de> Deserialize<'de> for LeanString {
+impl<'de> Deserialize<'de> for CharString {
     #[inline]
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct LeanStringVisitor;
+        struct CharStringVisitor;
 
-        impl<'de> Visitor<'de> for LeanStringVisitor {
-            type Value = LeanString;
+        impl<'de> Visitor<'de> for CharStringVisitor {
+            type Value = CharString;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("a string")
             }
 
             fn visit_str<E: Error>(self, v: &str) -> Result<Self::Value, E> {
-                Ok(LeanString::from(v))
+                Ok(CharString::from(v))
             }
 
             fn visit_borrowed_str<E: Error>(self, v: &'de str) -> Result<Self::Value, E> {
-                Ok(LeanString::from(v))
+                Ok(CharString::from(v))
             }
 
             fn visit_bytes<E: Error>(self, v: &[u8]) -> Result<Self::Value, E> {
-                LeanString::from_utf8(v)
+                CharString::from_utf8(v)
                     .map_err(|_| Error::invalid_value(Unexpected::Bytes(v), &self))
             }
 
             fn visit_borrowed_bytes<E: Error>(self, v: &'de [u8]) -> Result<Self::Value, E> {
-                LeanString::from_utf8(v)
+                CharString::from_utf8(v)
                     .map_err(|_| Error::invalid_value(Unexpected::Bytes(v), &self))
             }
         }
 
-        deserializer.deserialize_string(LeanStringVisitor)
+        deserializer.deserialize_string(CharStringVisitor)
     }
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-impl Serialize for LeanStr {
+impl Serialize for CharStr {
     #[inline]
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self.as_str().serialize(serializer)
@@ -58,29 +58,29 @@ impl Serialize for LeanStr {
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-impl<'de> Deserialize<'de> for LeanStr {
+impl<'de> Deserialize<'de> for CharStr {
     #[inline]
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct LeanStrVisitor;
+        struct CharStrVisitor;
 
-        impl<'de> Visitor<'de> for LeanStrVisitor {
-            type Value = LeanStr;
+        impl<'de> Visitor<'de> for CharStrVisitor {
+            type Value = CharStr;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("a string")
             }
 
             fn visit_str<E: Error>(self, value: &str) -> Result<Self::Value, E> {
-                Ok(LeanStr::from(value))
+                Ok(CharStr::from(value))
             }
 
             fn visit_borrowed_str<E: Error>(self, value: &'de str) -> Result<Self::Value, E> {
-                Ok(LeanStr::from(value))
+                Ok(CharStr::from(value))
             }
 
             fn visit_bytes<E: Error>(self, value: &[u8]) -> Result<Self::Value, E> {
                 str::from_utf8(value)
-                    .map(LeanStr::from)
+                    .map(CharStr::from)
                     .map_err(|_| Error::invalid_value(Unexpected::Bytes(value), &self))
             }
 
@@ -89,6 +89,6 @@ impl<'de> Deserialize<'de> for LeanStr {
             }
         }
 
-        deserializer.deserialize_string(LeanStrVisitor)
+        deserializer.deserialize_string(CharStrVisitor)
     }
 }

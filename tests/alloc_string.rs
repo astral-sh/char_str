@@ -7,7 +7,7 @@
 // use std::ops::Bound::*;
 // use std::ops::{Bound, RangeBounds};
 // use std::{assert_matches, panic, str};
-use lean_string::{LeanString, ToLeanString};
+use char_str::{CharString, ToCharString};
 use std::{borrow::Cow, panic};
 
 pub trait IntoCow<'a, B: ?Sized>
@@ -31,14 +31,14 @@ impl<'a> IntoCow<'a, str> for &'a str {
 
 #[test]
 fn test_from_str() {
-    let owned: Option<LeanString> = "string".parse().ok();
+    let owned: Option<CharString> = "string".parse().ok();
     assert_eq!(owned.as_deref(), Some("string"));
 }
 
 #[test]
 fn test_from_cow_str() {
-    assert_eq!(LeanString::from(Cow::Borrowed("string")), "string");
-    assert_eq!(LeanString::from(Cow::Owned(String::from("string"))), "string");
+    assert_eq!(CharString::from(Cow::Borrowed("string")), "string");
+    assert_eq!(CharString::from(Cow::Owned(String::from("string"))), "string");
 }
 
 // #[test]
@@ -50,10 +50,10 @@ fn test_from_cow_str() {
 #[test]
 fn test_from_utf8() {
     let xs = b"hello".to_vec();
-    assert_eq!(LeanString::from_utf8(&xs).unwrap(), LeanString::from("hello"));
+    assert_eq!(CharString::from_utf8(&xs).unwrap(), CharString::from("hello"));
 
     let xs = "ศไทย中华Việt Nam".as_bytes().to_vec();
-    assert_eq!(LeanString::from_utf8(&xs).unwrap(), LeanString::from("ศไทย中华Việt Nam"));
+    assert_eq!(CharString::from_utf8(&xs).unwrap(), CharString::from("ศไทย中华Việt Nam"));
 
     // let xs = b"hello\xFF".to_vec();
     // let err = String::from_utf8(&xs).unwrap_err();
@@ -68,52 +68,52 @@ fn test_from_utf8() {
 fn test_from_utf8_lossy() {
     let xs = b"hello";
     let ys: Cow<'_, str> = "hello".into_cow();
-    assert_eq!(LeanString::from_utf8_lossy(xs), ys);
+    assert_eq!(CharString::from_utf8_lossy(xs), ys);
 
     let xs = "ศไทย中华Việt Nam".as_bytes();
     let ys: Cow<'_, str> = "ศไทย中华Việt Nam".into_cow();
-    assert_eq!(LeanString::from_utf8_lossy(xs), ys);
+    assert_eq!(CharString::from_utf8_lossy(xs), ys);
 
     let xs = b"Hello\xC2 There\xFF Goodbye";
     assert_eq!(
-        LeanString::from_utf8_lossy(xs),
+        CharString::from_utf8_lossy(xs),
         String::from("Hello\u{FFFD} There\u{FFFD} Goodbye").into_cow()
     );
 
     let xs = b"Hello\xC0\x80 There\xE6\x83 Goodbye";
     assert_eq!(
-        LeanString::from_utf8_lossy(xs),
+        CharString::from_utf8_lossy(xs),
         String::from("Hello\u{FFFD}\u{FFFD} There\u{FFFD} Goodbye").into_cow()
     );
 
     let xs = b"\xF5foo\xF5\x80bar";
     assert_eq!(
-        LeanString::from_utf8_lossy(xs),
+        CharString::from_utf8_lossy(xs),
         String::from("\u{FFFD}foo\u{FFFD}\u{FFFD}bar").into_cow()
     );
 
     let xs = b"\xF1foo\xF1\x80bar\xF1\x80\x80baz";
     assert_eq!(
-        LeanString::from_utf8_lossy(xs),
+        CharString::from_utf8_lossy(xs),
         String::from("\u{FFFD}foo\u{FFFD}bar\u{FFFD}baz").into_cow()
     );
 
     let xs = b"\xF4foo\xF4\x80bar\xF4\xBFbaz";
     assert_eq!(
-        LeanString::from_utf8_lossy(xs),
+        CharString::from_utf8_lossy(xs),
         String::from("\u{FFFD}foo\u{FFFD}bar\u{FFFD}\u{FFFD}baz").into_cow()
     );
 
     let xs = b"\xF0\x80\x80\x80foo\xF0\x90\x80\x80bar";
     assert_eq!(
-        LeanString::from_utf8_lossy(xs),
+        CharString::from_utf8_lossy(xs),
         String::from("\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}foo\u{10000}bar").into_cow()
     );
 
     // surrogates
     let xs = b"\xED\xA0\x80foo\xED\xBF\xBFbar";
     assert_eq!(
-        LeanString::from_utf8_lossy(xs),
+        CharString::from_utf8_lossy(xs),
         String::from("\u{FFFD}\u{FFFD}\u{FFFD}foo\u{FFFD}\u{FFFD}\u{FFFD}bar").into_cow()
     );
 }
@@ -159,21 +159,21 @@ fn test_from_utf8_lossy() {
 fn test_from_utf16() {
     let pairs = [
         (
-            LeanString::from("𐍅𐌿𐌻𐍆𐌹𐌻𐌰\n"),
+            CharString::from("𐍅𐌿𐌻𐍆𐌹𐌻𐌰\n"),
             vec![
                 0xd800, 0xdf45, 0xd800, 0xdf3f, 0xd800, 0xdf3b, 0xd800, 0xdf46, 0xd800, 0xdf39,
                 0xd800, 0xdf3b, 0xd800, 0xdf30, 0x000a,
             ],
         ),
         (
-            LeanString::from("𐐒𐑉𐐮𐑀𐐲𐑋 𐐏𐐲𐑍\n"),
+            CharString::from("𐐒𐑉𐐮𐑀𐐲𐑋 𐐏𐐲𐑍\n"),
             vec![
                 0xd801, 0xdc12, 0xd801, 0xdc49, 0xd801, 0xdc2e, 0xd801, 0xdc40, 0xd801, 0xdc32,
                 0xd801, 0xdc4b, 0x0020, 0xd801, 0xdc0f, 0xd801, 0xdc32, 0xd801, 0xdc4d, 0x000a,
             ],
         ),
         (
-            LeanString::from("𐌀𐌖𐌋𐌄𐌑𐌉·𐌌𐌄𐌕𐌄𐌋𐌉𐌑\n"),
+            CharString::from("𐌀𐌖𐌋𐌄𐌑𐌉·𐌌𐌄𐌕𐌄𐌋𐌉𐌑\n"),
             vec![
                 0xd800, 0xdf00, 0xd800, 0xdf16, 0xd800, 0xdf0b, 0xd800, 0xdf04, 0xd800, 0xdf11,
                 0xd800, 0xdf09, 0x00b7, 0xd800, 0xdf0c, 0xd800, 0xdf04, 0xd800, 0xdf15, 0xd800,
@@ -181,7 +181,7 @@ fn test_from_utf16() {
             ],
         ),
         (
-            LeanString::from("𐒋𐒘𐒈𐒑𐒛𐒒 𐒕𐒓 𐒈𐒚𐒍 𐒏𐒜𐒒𐒖𐒆 𐒕𐒆\n"),
+            CharString::from("𐒋𐒘𐒈𐒑𐒛𐒒 𐒕𐒓 𐒈𐒚𐒍 𐒏𐒜𐒒𐒖𐒆 𐒕𐒆\n"),
             vec![
                 0xd801, 0xdc8b, 0xd801, 0xdc98, 0xd801, 0xdc88, 0xd801, 0xdc91, 0xd801, 0xdc9b,
                 0xd801, 0xdc92, 0x0020, 0xd801, 0xdc95, 0xd801, 0xdc93, 0x0020, 0xd801, 0xdc88,
@@ -191,21 +191,21 @@ fn test_from_utf16() {
             ],
         ),
         // Issue #12318, even-numbered non-BMP planes
-        (LeanString::from("\u{20000}"), vec![0xD840, 0xDC00]),
+        (CharString::from("\u{20000}"), vec![0xD840, 0xDC00]),
     ];
 
     for p in &pairs {
         let (s, u) = (*p).clone();
         let s_as_utf16 = s.encode_utf16().collect::<Vec<u16>>();
-        let u_as_string = LeanString::from_utf16(&u).unwrap();
+        let u_as_string = CharString::from_utf16(&u).unwrap();
 
         assert!(core::char::decode_utf16(u.iter().cloned()).all(|r| r.is_ok()));
         assert_eq!(s_as_utf16, u);
 
         assert_eq!(u_as_string, s);
-        assert_eq!(LeanString::from_utf16_lossy(&u), s);
+        assert_eq!(CharString::from_utf16_lossy(&u), s);
 
-        assert_eq!(LeanString::from_utf16(&s_as_utf16).unwrap(), s);
+        assert_eq!(CharString::from_utf16(&s_as_utf16).unwrap(), s);
         assert_eq!(u_as_string.encode_utf16().collect::<Vec<u16>>(), u);
     }
 }
@@ -214,31 +214,31 @@ fn test_from_utf16() {
 fn test_utf16_invalid() {
     // completely positive cases tested above.
     // lead + eof
-    assert!(LeanString::from_utf16(&[0xD800]).is_err());
+    assert!(CharString::from_utf16(&[0xD800]).is_err());
     // lead + lead
-    assert!(LeanString::from_utf16(&[0xD800, 0xD800]).is_err());
+    assert!(CharString::from_utf16(&[0xD800, 0xD800]).is_err());
 
     // isolated trail
-    assert!(LeanString::from_utf16(&[0x0061, 0xDC00]).is_err());
+    assert!(CharString::from_utf16(&[0x0061, 0xDC00]).is_err());
 
     // general
-    assert!(LeanString::from_utf16(&[0xD800, 0xd801, 0xdc8b, 0xD800]).is_err());
+    assert!(CharString::from_utf16(&[0xD800, 0xd801, 0xdc8b, 0xD800]).is_err());
 }
 
 #[test]
 fn test_from_utf16_lossy() {
     // completely positive cases tested above.
     // lead + eof
-    assert_eq!(LeanString::from_utf16_lossy(&[0xD800]), String::from("\u{FFFD}"));
+    assert_eq!(CharString::from_utf16_lossy(&[0xD800]), String::from("\u{FFFD}"));
     // lead + lead
-    assert_eq!(LeanString::from_utf16_lossy(&[0xD800, 0xD800]), String::from("\u{FFFD}\u{FFFD}"));
+    assert_eq!(CharString::from_utf16_lossy(&[0xD800, 0xD800]), String::from("\u{FFFD}\u{FFFD}"));
 
     // isolated trail
-    assert_eq!(LeanString::from_utf16_lossy(&[0x0061, 0xDC00]), String::from("a\u{FFFD}"));
+    assert_eq!(CharString::from_utf16_lossy(&[0x0061, 0xDC00]), String::from("a\u{FFFD}"));
 
     // general
     assert_eq!(
-        LeanString::from_utf16_lossy(&[0xD800, 0xd801, 0xdc8b, 0xD800]),
+        CharString::from_utf16_lossy(&[0xD800, 0xd801, 0xdc8b, 0xD800]),
         String::from("\u{FFFD}𐒋\u{FFFD}")
     );
 }
@@ -255,7 +255,7 @@ fn test_from_utf16_lossy() {
 
 #[test]
 fn test_push_str() {
-    let mut s = LeanString::new();
+    let mut s = CharString::new();
     s.push_str("");
     assert_eq!(&s[0..], "");
     s.push_str("abc");
@@ -266,7 +266,7 @@ fn test_push_str() {
 
 #[test]
 fn test_add_assign() {
-    let mut s = LeanString::new();
+    let mut s = CharString::new();
     s += "";
     assert_eq!(s.as_str(), "");
     s += "abc";
@@ -277,7 +277,7 @@ fn test_add_assign() {
 
 #[test]
 fn test_push() {
-    let mut data = LeanString::from("ประเทศไทย中");
+    let mut data = CharString::from("ประเทศไทย中");
     data.push('华');
     data.push('b'); // 1 byte
     data.push('¢'); // 2 byte
@@ -288,7 +288,7 @@ fn test_push() {
 
 #[test]
 fn test_pop() {
-    let mut data = LeanString::from("ประเทศไทย中华b¢€𤭢");
+    let mut data = CharString::from("ประเทศไทย中华b¢€𤭢");
     assert_eq!(data.pop().unwrap(), '𤭢'); // 4 bytes
     assert_eq!(data.pop().unwrap(), '€'); // 3 bytes
     assert_eq!(data.pop().unwrap(), '¢'); // 2 bytes
@@ -300,8 +300,8 @@ fn test_pop() {
 #[test]
 fn test_split_off_empty() {
     let orig = "Hello, world!";
-    let mut split = LeanString::from(orig);
-    let empty: LeanString = split.split_off(orig.len());
+    let mut split = CharString::from(orig);
+    let empty: CharString = split.split_off(orig.len());
     assert!(empty.is_empty());
 }
 
@@ -309,20 +309,20 @@ fn test_split_off_empty() {
 #[should_panic]
 fn test_split_off_past_end() {
     let orig = "Hello, world!";
-    let mut split = LeanString::from(orig);
+    let mut split = CharString::from(orig);
     let _ = split.split_off(orig.len() + 1);
 }
 
 #[test]
 #[should_panic]
 fn test_split_off_mid_char() {
-    let mut shan = LeanString::from("山");
+    let mut shan = CharString::from("山");
     let _broken_mountain = shan.split_off(1);
 }
 
 #[test]
 fn test_split_off_ascii() {
-    let mut ab = LeanString::from("ABCD");
+    let mut ab = CharString::from("ABCD");
     let orig_capacity = ab.capacity();
     let cd = ab.split_off(2);
     assert_eq!(ab, "AB");
@@ -332,7 +332,7 @@ fn test_split_off_ascii() {
 
 #[test]
 fn test_split_off_unicode() {
-    let mut nihon = LeanString::from("日本語");
+    let mut nihon = CharString::from("日本語");
     let orig_capacity = nihon.capacity();
     let go = nihon.split_off("日本".len());
     assert_eq!(nihon, "日本");
@@ -342,7 +342,7 @@ fn test_split_off_unicode() {
 
 #[test]
 fn test_str_truncate() {
-    let mut s = LeanString::from("12345");
+    let mut s = CharString::from("12345");
     s.truncate(5);
     assert_eq!(s, "12345");
     s.truncate(3);
@@ -350,7 +350,7 @@ fn test_str_truncate() {
     s.truncate(0);
     assert_eq!(s, "");
 
-    let mut s = LeanString::from("12345");
+    let mut s = CharString::from("12345");
     let p = s.as_ptr();
     s.truncate(3);
     s.push_str("6");
@@ -360,7 +360,7 @@ fn test_str_truncate() {
 
 #[test]
 fn test_str_truncate_invalid_len() {
-    let mut s = LeanString::from("12345");
+    let mut s = CharString::from("12345");
     s.truncate(6);
     assert_eq!(s, "12345");
 }
@@ -368,13 +368,13 @@ fn test_str_truncate_invalid_len() {
 #[test]
 #[should_panic(expected = "index is not a char boundary or out of bounds (index: 1)")]
 fn test_str_truncate_split_codepoint() {
-    let mut s = LeanString::from("\u{FC}"); // ü
+    let mut s = CharString::from("\u{FC}"); // ü
     s.truncate(1);
 }
 
 #[test]
 fn test_str_clear() {
-    let mut s = LeanString::from("12345");
+    let mut s = CharString::from("12345");
     s.clear();
     assert_eq!(s.len(), 0);
     assert_eq!(s, "");
@@ -382,7 +382,7 @@ fn test_str_clear() {
 
 #[test]
 fn test_str_add() {
-    let a = LeanString::from("12345");
+    let a = CharString::from("12345");
     let b = a + "2";
     let b = b + "2";
     assert_eq!(b.len(), 7);
@@ -391,7 +391,7 @@ fn test_str_add() {
 
 #[test]
 fn remove() {
-    let mut s = "ศไทย中华Việt Nam; foobar".to_lean_string();
+    let mut s = "ศไทย中华Việt Nam; foobar".to_char_string();
     assert_eq!(s.remove(0), 'ศ');
     assert_eq!(s.len(), 33);
     assert_eq!(s, "ไทย中华Việt Nam; foobar");
@@ -402,7 +402,7 @@ fn remove() {
 #[test]
 #[should_panic(expected = "index is not a char boundary or out of bounds (index: 1)")]
 fn remove_bad() {
-    "ศ".to_lean_string().remove(1);
+    "ศ".to_char_string().remove(1);
 }
 
 // #[test]
@@ -479,7 +479,7 @@ fn remove_bad() {
 #[test]
 #[cfg_attr(not(panic = "unwind"), ignore = "test requires unwinding support")]
 fn test_retain() {
-    let mut s = LeanString::from("α_β_γ");
+    let mut s = CharString::from("α_β_γ");
 
     s.retain(|_| true);
     assert_eq!(s, "α_β_γ");
@@ -496,7 +496,7 @@ fn test_retain() {
     s.retain(|_| false);
     assert_eq!(s, "");
 
-    let mut s = LeanString::from("0è0");
+    let mut s = CharString::from("0è0");
     let _ = panic::catch_unwind(panic::AssertUnwindSafe(|| {
         let mut count = 0;
         s.retain(|_| {
@@ -513,7 +513,7 @@ fn test_retain() {
 
 #[test]
 fn insert() {
-    let mut s = "foobar".to_lean_string();
+    let mut s = "foobar".to_char_string();
     s.insert(0, 'ệ');
     assert_eq!(s, "ệfoobar");
     s.insert(6, 'ย');
@@ -523,18 +523,18 @@ fn insert() {
 #[test]
 #[should_panic(expected = "index is not a char boundary or out of bounds (index: 1)")]
 fn insert_bad1() {
-    "".to_lean_string().insert(1, 't');
+    "".to_char_string().insert(1, 't');
 }
 
 #[test]
 #[should_panic(expected = "index is not a char boundary or out of bounds (index: 1)")]
 fn insert_bad2() {
-    "ệ".to_lean_string().insert(1, 't');
+    "ệ".to_char_string().insert(1, 't');
 }
 
 #[test]
 fn test_slicing() {
-    let s = "foobar".to_lean_string();
+    let s = "foobar".to_char_string();
     assert_eq!("foobar", &s[..]);
     assert_eq!("foo", &s[..3]);
     assert_eq!("bar", &s[3..]);
@@ -543,13 +543,13 @@ fn test_slicing() {
 
 #[test]
 fn test_simple_types() {
-    assert_eq!(1.to_lean_string(), "1");
-    assert_eq!((-1).to_lean_string(), "-1");
-    assert_eq!(200.to_lean_string(), "200");
-    assert_eq!(2.to_lean_string(), "2");
-    assert_eq!(true.to_lean_string(), "true");
-    assert_eq!(false.to_lean_string(), "false");
-    assert_eq!(("hi".to_lean_string()).to_lean_string(), "hi");
+    assert_eq!(1.to_char_string(), "1");
+    assert_eq!((-1).to_char_string(), "-1");
+    assert_eq!(200.to_char_string(), "200");
+    assert_eq!(2.to_char_string(), "2");
+    assert_eq!(true.to_char_string(), "true");
+    assert_eq!(false.to_char_string(), "false");
+    assert_eq!(("hi".to_char_string()).to_char_string(), "hi");
 }
 
 // #[test]
@@ -567,17 +567,17 @@ fn test_from_iterator() {
     let t = "ศไทย中华";
     let u = "Việt Nam";
 
-    let a: LeanString = s.chars().collect();
+    let a: CharString = s.chars().collect();
     assert_eq!(s, a);
 
-    let mut b = t.to_lean_string();
+    let mut b = t.to_char_string();
     b.extend(u.chars());
     assert_eq!(s, b);
 
-    let c: LeanString = [t, u].into_iter().collect();
+    let c: CharString = [t, u].into_iter().collect();
     assert_eq!(s, c);
 
-    let mut d = t.to_lean_string();
+    let mut d = t.to_char_string();
     d.extend(vec![u]);
     assert_eq!(s, d);
 }
@@ -771,7 +771,7 @@ fn test_from_iterator() {
 
 #[test]
 fn test_extend_ref() {
-    let mut a = "foo".to_lean_string();
+    let mut a = "foo".to_char_string();
     a.extend(&['b', 'a', 'r']);
 
     assert_eq!(&a, "foobar");
@@ -811,11 +811,11 @@ fn test_extend_ref() {
 #[test]
 // #[cfg_attr(miri, ignore)] // Miri does not support signalling OOM
 fn test_try_with_capacity() {
-    let string = LeanString::try_with_capacity(1000).unwrap();
+    let string = CharString::try_with_capacity(1000).unwrap();
     assert_eq!(0, string.len());
     assert!(string.capacity() >= 1000 && string.capacity() <= isize::MAX as usize);
 
-    assert!(LeanString::try_with_capacity(usize::MAX).is_err());
+    assert!(CharString::try_with_capacity(usize::MAX).is_err());
 }
 
 // #[test]
@@ -950,8 +950,8 @@ fn test_try_with_capacity() {
 
 #[test]
 fn test_from_char() {
-    assert_eq!(LeanString::from('a'), 'a'.to_string());
-    let s: LeanString = 'x'.into();
+    assert_eq!(CharString::from('a'), 'a'.to_string());
+    let s: CharString = 'x'.into();
     assert_eq!(s, 'x'.to_string());
 }
 

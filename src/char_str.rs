@@ -5,34 +5,34 @@ use alloc::{borrow::Cow, boxed::Box, string::String};
 #[cfg(feature = "std")]
 use std::ffi::OsStr;
 
-use crate::{LeanString, Repr, ReserveError, UnwrapWithMsg};
+use crate::{CharString, Repr, ReserveError, UnwrapWithMsg};
 
 /// Compact, immutable, UTF-8 encoded owned string type.
 ///
 /// Values constructed directly store short strings inline. Long strings use an exactly-sized,
 /// reference-counted heap allocation without a capacity field, making clones cheap without
-/// retaining capacity that can never be used. Freezing a heap-allocated [`LeanString`] preserves
+/// retaining capacity that can never be used. Freezing a heap-allocated [`CharString`] preserves
 /// the heap storage kind even when its current contents fit inline. Use
-/// [`LeanStr::into_lean_string`] to convert heap storage to the growable layout used by
-/// [`LeanString`].
+/// [`CharStr::into_char_string`] to convert heap storage to the growable layout used by
+/// [`CharString`].
 #[repr(transparent)]
-pub struct LeanStr(Repr);
+pub struct CharStr(Repr);
 
 const _: () = {
-    assert!(size_of::<LeanStr>() == size_of::<[usize; 2]>());
-    assert!(size_of::<Option<LeanStr>>() == size_of::<[usize; 2]>());
-    assert!(align_of::<LeanStr>() == align_of::<usize>());
-    assert!(align_of::<Option<LeanStr>>() == align_of::<usize>());
+    assert!(size_of::<CharStr>() == size_of::<[usize; 2]>());
+    assert!(size_of::<Option<CharStr>>() == size_of::<[usize; 2]>());
+    assert!(align_of::<CharStr>() == align_of::<usize>());
+    assert!(align_of::<Option<CharStr>>() == align_of::<usize>());
 };
 
-impl LeanStr {
-    /// Creates an empty `LeanStr`.
+impl CharStr {
+    /// Creates an empty `CharStr`.
     #[inline]
     pub const fn new() -> Self {
         Self(Repr::new())
     }
 
-    /// Creates a `LeanStr` backed directly by a static string when it does not fit inline.
+    /// Creates a `CharStr` backed directly by a static string when it does not fit inline.
     #[inline]
     pub const fn from_static_str(text: &'static str) -> Self {
         match Repr::from_static_str(text) {
@@ -41,16 +41,16 @@ impl LeanStr {
         }
     }
 
-    /// Creates an exactly-sized `LeanStr`.
+    /// Creates an exactly-sized `CharStr`.
     #[inline]
     pub fn try_from_str(text: &str) -> Result<Self, ReserveError> {
         Repr::from_exact_str(text).map(Self)
     }
 
-    /// Creates an exactly-sized `LeanStr` by concatenating string slices.
+    /// Creates an exactly-sized `CharStr` by concatenating string slices.
     ///
     /// Heap storage is allocated at most once. To handle allocation failure, use
-    /// [`LeanStr::try_concat`].
+    /// [`CharStr::try_concat`].
     ///
     /// # Panics
     ///
@@ -59,8 +59,8 @@ impl LeanStr {
     /// # Examples
     ///
     /// ```
-    /// # use lean_string::LeanStr;
-    /// let path = LeanStr::concat(&["prefix", "suffix"]);
+    /// # use char_str::CharStr;
+    /// let path = CharStr::concat(&["prefix", "suffix"]);
     /// assert_eq!(path, "prefixsuffix");
     /// ```
     #[inline]
@@ -68,7 +68,7 @@ impl LeanStr {
         Self::try_concat(slices).unwrap_with_msg()
     }
 
-    /// Fallible version of [`LeanStr::concat`].
+    /// Fallible version of [`CharStr::concat`].
     ///
     /// Returns a [`ReserveError`] if the combined length overflows, the exact buffer cannot be
     /// allocated, or an [`AsRef`] implementation reports inconsistent slice lengths while the
@@ -78,10 +78,10 @@ impl LeanStr {
         Self::try_join(slices, "")
     }
 
-    /// Creates an exactly-sized `LeanStr` by joining string slices with a separator.
+    /// Creates an exactly-sized `CharStr` by joining string slices with a separator.
     ///
     /// Heap storage is allocated at most once. To handle allocation failure, use
-    /// [`LeanStr::try_join`].
+    /// [`CharStr::try_join`].
     ///
     /// # Panics
     ///
@@ -90,8 +90,8 @@ impl LeanStr {
     /// # Examples
     ///
     /// ```
-    /// # use lean_string::LeanStr;
-    /// let name = LeanStr::join(&["package", "module", "name"], ".");
+    /// # use char_str::CharStr;
+    /// let name = CharStr::join(&["package", "module", "name"], ".");
     /// assert_eq!(name, "package.module.name");
     /// ```
     #[inline]
@@ -99,7 +99,7 @@ impl LeanStr {
         Self::try_join(slices, separator).unwrap_with_msg()
     }
 
-    /// Fallible version of [`LeanStr::join`].
+    /// Fallible version of [`CharStr::join`].
     ///
     /// Returns a [`ReserveError`] if the joined length overflows, the exact buffer cannot be
     /// allocated, or an [`AsRef`] implementation reports inconsistent slice lengths while the
@@ -139,7 +139,7 @@ impl LeanStr {
         self.0.is_heap_buffer()
     }
 
-    /// Converts this value into a mutable [`LeanString`].
+    /// Converts this value into a mutable [`CharString`].
     ///
     /// Unique exact heap storage is converted to growable storage with `realloc`. Shared heap
     /// storage is copied into a new growable allocation.
@@ -147,13 +147,13 @@ impl LeanStr {
     /// # Panics
     ///
     /// Panics if reallocating or copying heap storage fails. To handle allocation failure, use
-    /// [`LeanStr::try_into_lean_string`].
+    /// [`CharStr::try_into_char_string`].
     #[inline]
-    pub fn into_lean_string(self) -> LeanString {
-        self.try_into_lean_string().unwrap_with_msg()
+    pub fn into_char_string(self) -> CharString {
+        self.try_into_char_string().unwrap_with_msg()
     }
 
-    /// Tries to convert this value into a mutable [`LeanString`].
+    /// Tries to convert this value into a mutable [`CharString`].
     ///
     /// Inline and static storage are transferred without reallocating. Unique exact heap storage
     /// is converted with `realloc`, while shared heap storage is copied.
@@ -161,11 +161,11 @@ impl LeanStr {
     /// # Errors
     ///
     /// Returns a [`ReserveError`] if converting heap storage fails. Because this method consumes
-    /// `self`, the original [`LeanStr`] is dropped on failure.
+    /// `self`, the original [`CharStr`] is dropped on failure.
     #[inline]
-    pub fn try_into_lean_string(mut self) -> Result<LeanString, ReserveError> {
+    pub fn try_into_char_string(mut self) -> Result<CharString, ReserveError> {
         self.0.make_growable()?;
-        Ok(LeanString::from_repr(mem::replace(&mut self.0, Repr::new())))
+        Ok(CharString::from_repr(mem::replace(&mut self.0, Repr::new())))
     }
 
     pub(crate) fn from_repr(repr: Repr) -> Self {
@@ -174,7 +174,7 @@ impl LeanStr {
     }
 }
 
-impl Clone for LeanStr {
+impl Clone for CharStr {
     #[inline]
     fn clone(&self) -> Self {
         Self(self.0.make_shallow_clone())
@@ -186,26 +186,26 @@ impl Clone for LeanStr {
     }
 }
 
-impl Drop for LeanStr {
+impl Drop for CharStr {
     #[inline]
     fn drop(&mut self) {
         self.0.replace_inner(Repr::new());
     }
 }
 
-// SAFETY: `LeanStr` is `repr(transparent)` over `Repr`, and heap storage is immutable and
+// SAFETY: `CharStr` is `repr(transparent)` over `Repr`, and heap storage is immutable and
 // reference-counted like `Arc`.
-unsafe impl Send for LeanStr {}
-unsafe impl Sync for LeanStr {}
+unsafe impl Send for CharStr {}
+unsafe impl Sync for CharStr {}
 
-impl Default for LeanStr {
+impl Default for CharStr {
     #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Deref for LeanStr {
+impl Deref for CharStr {
     type Target = str;
 
     #[inline]
@@ -214,19 +214,19 @@ impl Deref for LeanStr {
     }
 }
 
-impl fmt::Debug for LeanStr {
+impl fmt::Debug for CharStr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self.as_str(), f)
     }
 }
 
-impl fmt::Display for LeanStr {
+impl fmt::Display for CharStr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self.as_str(), f)
     }
 }
 
-impl AsRef<str> for LeanStr {
+impl AsRef<str> for CharStr {
     #[inline]
     fn as_ref(&self) -> &str {
         self.as_str()
@@ -234,121 +234,121 @@ impl AsRef<str> for LeanStr {
 }
 
 #[cfg(feature = "std")]
-impl AsRef<OsStr> for LeanStr {
+impl AsRef<OsStr> for CharStr {
     #[inline]
     fn as_ref(&self) -> &OsStr {
         OsStr::new(self.as_str())
     }
 }
 
-impl AsRef<[u8]> for LeanStr {
+impl AsRef<[u8]> for CharStr {
     #[inline]
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
     }
 }
 
-impl Borrow<str> for LeanStr {
+impl Borrow<str> for CharStr {
     #[inline]
     fn borrow(&self) -> &str {
         self.as_str()
     }
 }
 
-impl Eq for LeanStr {}
+impl Eq for CharStr {}
 
-impl PartialEq for LeanStr {
+impl PartialEq for CharStr {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.as_str() == other.as_str()
     }
 }
 
-impl PartialEq<str> for LeanStr {
+impl PartialEq<str> for CharStr {
     #[inline]
     fn eq(&self, other: &str) -> bool {
         self.as_str() == other
     }
 }
 
-impl PartialEq<LeanStr> for str {
+impl PartialEq<CharStr> for str {
     #[inline]
-    fn eq(&self, other: &LeanStr) -> bool {
+    fn eq(&self, other: &CharStr) -> bool {
         self == other.as_str()
     }
 }
 
-impl PartialEq<&str> for LeanStr {
+impl PartialEq<&str> for CharStr {
     #[inline]
     fn eq(&self, other: &&str) -> bool {
         self.as_str() == *other
     }
 }
 
-impl PartialEq<LeanStr> for &str {
+impl PartialEq<CharStr> for &str {
     #[inline]
-    fn eq(&self, other: &LeanStr) -> bool {
+    fn eq(&self, other: &CharStr) -> bool {
         *self == other.as_str()
     }
 }
 
-impl PartialEq<String> for LeanStr {
+impl PartialEq<String> for CharStr {
     #[inline]
     fn eq(&self, other: &String) -> bool {
         self.as_str() == other.as_str()
     }
 }
 
-impl PartialEq<LeanStr> for String {
+impl PartialEq<CharStr> for String {
     #[inline]
-    fn eq(&self, other: &LeanStr) -> bool {
+    fn eq(&self, other: &CharStr) -> bool {
         self.as_str() == other.as_str()
     }
 }
 
-impl PartialEq<LeanString> for LeanStr {
+impl PartialEq<CharString> for CharStr {
     #[inline]
-    fn eq(&self, other: &LeanString) -> bool {
+    fn eq(&self, other: &CharString) -> bool {
         self.as_str() == other.as_str()
     }
 }
 
-impl PartialEq<LeanStr> for LeanString {
+impl PartialEq<CharStr> for CharString {
     #[inline]
-    fn eq(&self, other: &LeanStr) -> bool {
+    fn eq(&self, other: &CharStr) -> bool {
         self.as_str() == other.as_str()
     }
 }
 
-impl Ord for LeanStr {
+impl Ord for CharStr {
     #[inline]
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         self.as_str().cmp(other.as_str())
     }
 }
 
-impl PartialOrd for LeanStr {
+impl PartialOrd for CharStr {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Hash for LeanStr {
+impl Hash for CharStr {
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.as_str().hash(state);
     }
 }
 
-impl From<char> for LeanStr {
+impl From<char> for CharStr {
     #[inline]
     fn from(value: char) -> Self {
         Self(Repr::from_char(value))
     }
 }
 
-impl From<&str> for LeanStr {
+impl From<&str> for CharStr {
     #[inline]
     #[track_caller]
     fn from(value: &str) -> Self {
@@ -356,7 +356,7 @@ impl From<&str> for LeanStr {
     }
 }
 
-impl From<String> for LeanStr {
+impl From<String> for CharStr {
     #[inline]
     #[track_caller]
     fn from(value: String) -> Self {
@@ -364,7 +364,7 @@ impl From<String> for LeanStr {
     }
 }
 
-impl From<&String> for LeanStr {
+impl From<&String> for CharStr {
     #[inline]
     #[track_caller]
     fn from(value: &String) -> Self {
@@ -372,13 +372,13 @@ impl From<&String> for LeanStr {
     }
 }
 
-impl From<Cow<'_, str>> for LeanStr {
+impl From<Cow<'_, str>> for CharStr {
     fn from(value: Cow<'_, str>) -> Self {
         Self::from(value.as_ref())
     }
 }
 
-impl From<Box<str>> for LeanStr {
+impl From<Box<str>> for CharStr {
     #[inline]
     #[track_caller]
     fn from(value: Box<str>) -> Self {
@@ -386,42 +386,42 @@ impl From<Box<str>> for LeanStr {
     }
 }
 
-impl From<&LeanStr> for LeanStr {
+impl From<&CharStr> for CharStr {
     #[inline]
-    fn from(value: &LeanStr) -> Self {
+    fn from(value: &CharStr) -> Self {
         value.clone()
     }
 }
 
-impl From<LeanStr> for String {
+impl From<CharStr> for String {
     #[inline]
-    fn from(value: LeanStr) -> Self {
+    fn from(value: CharStr) -> Self {
         value.as_str().into()
     }
 }
 
-impl From<&LeanStr> for String {
+impl From<&CharStr> for String {
     #[inline]
-    fn from(value: &LeanStr) -> Self {
+    fn from(value: &CharStr) -> Self {
         value.as_str().into()
     }
 }
 
-impl From<LeanString> for LeanStr {
+impl From<CharString> for CharStr {
     #[inline]
-    fn from(value: LeanString) -> Self {
+    fn from(value: CharString) -> Self {
         value.freeze()
     }
 }
 
-impl From<LeanStr> for LeanString {
+impl From<CharStr> for CharString {
     #[inline]
-    fn from(value: LeanStr) -> Self {
-        value.into_lean_string()
+    fn from(value: CharStr) -> Self {
+        value.into_char_string()
     }
 }
 
-impl FromStr for LeanStr {
+impl FromStr for CharStr {
     type Err = ReserveError;
 
     #[inline]
@@ -430,13 +430,13 @@ impl FromStr for LeanStr {
     }
 }
 
-impl FromIterator<char> for LeanStr {
+impl FromIterator<char> for CharStr {
     fn from_iter<T: IntoIterator<Item = char>>(iter: T) -> Self {
-        LeanString::from_iter(iter).freeze()
+        CharString::from_iter(iter).freeze()
     }
 }
 
-impl<'a> FromIterator<&'a char> for LeanStr {
+impl<'a> FromIterator<&'a char> for CharStr {
     fn from_iter<T: IntoIterator<Item = &'a char>>(iter: T) -> Self {
         iter.into_iter().copied().collect()
     }

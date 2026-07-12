@@ -1,15 +1,15 @@
-use lean_string::LeanString;
+use char_str::CharString;
 
-const INLINE_LIMIT: usize = size_of::<LeanString>();
+const INLINE_LIMIT: usize = size_of::<CharString>();
 
 #[cfg(target_pointer_width = "32")]
 const CAPACITY_WITH_HEAP_LENGTH_LAYOUT: usize = (1 << 24) - 1;
 
 #[test]
 fn new_empty() {
-    assert_eq!(LeanString::new(), "");
+    assert_eq!(CharString::new(), "");
 
-    let s = LeanString::new();
+    let s = CharString::new();
     assert_eq!(s.as_str(), "");
     assert!(s.is_empty());
     assert_eq!(s.len(), 0);
@@ -20,7 +20,7 @@ fn new_empty() {
 #[cfg(target_pointer_width = "32")]
 #[test]
 fn drop_large_capacity_with_inline_length() {
-    let string = LeanString::with_capacity(CAPACITY_WITH_HEAP_LENGTH_LAYOUT);
+    let string = CharString::with_capacity(CAPACITY_WITH_HEAP_LENGTH_LAYOUT);
     assert_eq!(string.len(), 0);
     assert_eq!(string.capacity(), CAPACITY_WITH_HEAP_LENGTH_LAYOUT);
     drop(string);
@@ -29,7 +29,7 @@ fn drop_large_capacity_with_inline_length() {
 #[cfg(target_pointer_width = "32")]
 #[test]
 fn realloc_large_capacity_with_inline_length() {
-    let mut string = LeanString::new();
+    let mut string = CharString::new();
     string.reserve(CAPACITY_WITH_HEAP_LENGTH_LAYOUT);
     assert_eq!(string.len(), 0);
     assert_eq!(string.capacity(), CAPACITY_WITH_HEAP_LENGTH_LAYOUT);
@@ -41,26 +41,26 @@ fn realloc_large_capacity_with_inline_length() {
 
 #[test]
 fn new_from_char() {
-    assert_eq!(LeanString::from('a'), "a");
-    assert_eq!(LeanString::from('👍'), "👍");
-    assert_eq!(LeanString::from(''), "");
+    assert_eq!(CharString::from('a'), "a");
+    assert_eq!(CharString::from('👍'), "👍");
+    assert_eq!(CharString::from(''), "");
 }
 
 #[test]
 fn from_around_inline_limit() {
     let s = &String::from("0123456789abcdefg");
 
-    let inline = LeanString::from(&s[..INLINE_LIMIT - 1]);
+    let inline = CharString::from(&s[..INLINE_LIMIT - 1]);
     assert_eq!(inline, s[..INLINE_LIMIT - 1]);
     assert!(!inline.is_heap_allocated());
     assert_eq!(inline.capacity(), INLINE_LIMIT);
 
-    let inline = LeanString::from(&s[..INLINE_LIMIT]);
+    let inline = CharString::from(&s[..INLINE_LIMIT]);
     assert_eq!(inline, s[..INLINE_LIMIT]);
     assert!(!inline.is_heap_allocated());
     assert_eq!(inline.capacity(), INLINE_LIMIT);
 
-    let heap = LeanString::from(&s[..INLINE_LIMIT + 1]);
+    let heap = CharString::from(&s[..INLINE_LIMIT + 1]);
     assert_eq!(heap, s[..INLINE_LIMIT + 1]);
     assert!(heap.is_heap_allocated());
     assert_eq!(heap.capacity(), INLINE_LIMIT + 1);
@@ -70,17 +70,17 @@ fn from_around_inline_limit() {
 fn from_around_inline_limit_static() {
     let s: &'static str = "0123456789abcdefg";
 
-    let inline = LeanString::from_static_str(&s[..INLINE_LIMIT - 1]);
+    let inline = CharString::from_static_str(&s[..INLINE_LIMIT - 1]);
     assert_eq!(inline, s[..INLINE_LIMIT - 1]);
     assert!(!inline.is_heap_allocated());
     assert_eq!(inline.capacity(), INLINE_LIMIT);
 
-    let inline = LeanString::from_static_str(&s[..INLINE_LIMIT]);
+    let inline = CharString::from_static_str(&s[..INLINE_LIMIT]);
     assert_eq!(inline, s[..INLINE_LIMIT]);
     assert!(!inline.is_heap_allocated());
     assert_eq!(inline.capacity(), INLINE_LIMIT);
 
-    let static_ = LeanString::from_static_str(&s[..INLINE_LIMIT + 1]);
+    let static_ = CharString::from_static_str(&s[..INLINE_LIMIT + 1]);
     assert_eq!(static_, s[..INLINE_LIMIT + 1]);
     assert!(!static_.is_heap_allocated());
     assert_eq!(static_.capacity(), INLINE_LIMIT + 1);
@@ -88,7 +88,7 @@ fn from_around_inline_limit_static() {
 
 #[test]
 fn shrink_to_inline_buffer() {
-    let mut inline = LeanString::from("Hello");
+    let mut inline = CharString::from("Hello");
     assert!(!inline.is_heap_allocated());
     assert_eq!(inline.capacity(), INLINE_LIMIT);
 
@@ -106,7 +106,7 @@ fn shrink_to_inline_buffer() {
 #[test]
 fn shrink_to_static_buffer() {
     let text: &'static str = "A static str that is longer than inline limit";
-    let mut static_ = LeanString::from_static_str(text);
+    let mut static_ = CharString::from_static_str(text);
     assert!(!static_.is_heap_allocated());
 
     static_.shrink_to(30);
@@ -121,7 +121,7 @@ fn shrink_to_static_buffer() {
 #[test]
 fn shrink_to_heap_buffer() {
     let text = "A heap allocated string that is longer than inline limit";
-    let mut heap = LeanString::from(text);
+    let mut heap = CharString::from(text);
     assert!(heap.is_heap_allocated());
     let original_capacity = heap.capacity();
 
@@ -143,7 +143,7 @@ fn shrink_to_heap_buffer() {
 
 #[test]
 fn shrink_to_heap_to_inline() {
-    let mut heap = LeanString::with_capacity(100);
+    let mut heap = CharString::with_capacity(100);
     heap.push_str("Hello");
     assert!(heap.is_heap_allocated());
     assert_eq!(heap.capacity(), 100);
@@ -174,7 +174,7 @@ fn shrink_to_heap_to_inline() {
 
 #[test]
 fn shrink_to_cow_shared_buffer() {
-    let mut heap1 = LeanString::with_capacity(100);
+    let mut heap1 = CharString::with_capacity(100);
     heap1.push_str("Shared");
 
     let mut heap2 = heap1.clone();
@@ -207,7 +207,7 @@ fn shrink_to_cow_shared_buffer() {
 #[test]
 fn shrink_cow_shared_buffer_to_exact_capacity() {
     let text = "a".repeat(100);
-    let mut shrink_to = LeanString::from(text.as_str());
+    let mut shrink_to = CharString::from(text.as_str());
     shrink_to.reserve(50);
     assert_eq!(shrink_to.capacity(), 150);
 
@@ -228,7 +228,7 @@ fn shrink_cow_shared_buffer_to_exact_capacity() {
 
 #[test]
 fn push_cow() {
-    let mut s = LeanString::new();
+    let mut s = CharString::new();
     s.push('a');
     s.push('b');
     s.push_str("cdefgh");
@@ -275,7 +275,7 @@ fn push_cow() {
 
 #[test]
 fn push_to_static() {
-    let mut inline = LeanString::from_static_str("abcdefgh");
+    let mut inline = CharString::from_static_str("abcdefgh");
     assert_eq!(inline, "abcdefgh");
     assert_eq!(inline.len(), 8);
     assert!(!inline.is_heap_allocated());
@@ -296,7 +296,7 @@ fn push_to_static() {
     assert_eq!(inline.len(), 18);
     assert!(inline.is_heap_allocated());
 
-    let mut static_ = LeanString::from_static_str("abcdefghijklmnopqrstuvwxyz");
+    let mut static_ = CharString::from_static_str("abcdefghijklmnopqrstuvwxyz");
     assert_eq!(static_, "abcdefghijklmnopqrstuvwxyz");
     assert_eq!(static_.len(), 26);
     assert!(!static_.is_heap_allocated());
@@ -309,7 +309,7 @@ fn push_to_static() {
 
 #[test]
 fn pop_keep_capacity() {
-    let mut inline = LeanString::from("Hello!");
+    let mut inline = CharString::from("Hello!");
     assert_eq!(inline.pop(), Some('!'));
     assert_eq!(inline, "Hello");
     assert_eq!(inline.len(), 5);
@@ -323,7 +323,7 @@ fn pop_keep_capacity() {
     assert!(inline.is_empty());
     assert_eq!(inline.capacity(), INLINE_LIMIT);
 
-    let mut heap = LeanString::from("abcdefghijklmnopqrstuvwxyz");
+    let mut heap = CharString::from("abcdefghijklmnopqrstuvwxyz");
     assert_eq!(heap.pop(), Some('z'));
     assert_eq!(heap, "abcdefghijklmnopqrstuvwxy");
     assert_eq!(heap.len(), 25);
@@ -341,7 +341,7 @@ fn pop_keep_capacity() {
 #[test]
 fn pop_share_buffer() {
     // s is inlined
-    let mut s = LeanString::from("abcdefgh");
+    let mut s = CharString::from("abcdefgh");
     assert_eq!(s.pop(), Some('h'));
     assert_eq!(s.len(), 7);
 
@@ -375,7 +375,7 @@ fn pop_share_buffer() {
 
 #[test]
 fn pop_from_static() {
-    let mut static_ = LeanString::from_static_str("abcdefghijklmnopqrstuvwxyz");
+    let mut static_ = CharString::from_static_str("abcdefghijklmnopqrstuvwxyz");
     assert_eq!(static_.len(), 26);
     assert_eq!(static_.pop(), Some('z'));
     assert_eq!(static_, "abcdefghijklmnopqrstuvwxy");
@@ -390,7 +390,7 @@ fn pop_from_static() {
 
 #[test]
 fn pop_from_static_cow() {
-    let mut static1 = LeanString::from_static_str("0123456789abcdef!");
+    let mut static1 = CharString::from_static_str("0123456789abcdef!");
     assert_eq!(static1.pop(), Some('!'));
     let static2 = static1.clone();
     assert_eq!(static1.pop(), Some('f'));
@@ -408,12 +408,12 @@ fn pop_from_static_cow() {
 
 #[test]
 fn pop_from_empty() {
-    let mut inline = LeanString::new();
+    let mut inline = CharString::new();
     assert_eq!(inline, "");
     assert_eq!(inline.pop(), None);
     assert_eq!(inline, "");
 
-    let mut heap = LeanString::from("a".repeat(INLINE_LIMIT + 1));
+    let mut heap = CharString::from("a".repeat(INLINE_LIMIT + 1));
     for _ in 0..INLINE_LIMIT + 1 {
         heap.pop();
     }
@@ -421,19 +421,19 @@ fn pop_from_empty() {
     assert_eq!(heap.pop(), None);
     assert_eq!(heap, "");
 
-    let mut static_ = LeanString::from_static_str("");
+    let mut static_ = CharString::from_static_str("");
     assert_eq!(static_.pop(), None);
     assert_eq!(static_, "");
 }
 
 #[test]
 fn remove_cow() {
-    let mut inline = LeanString::from("Hello");
+    let mut inline = CharString::from("Hello");
     assert_eq!(inline.remove(4), 'o');
     assert_eq!(inline.remove(0), 'H');
     assert_eq!(inline, "ell");
 
-    let mut heap = LeanString::from("abcdefghijklmnopqrstuvwxyz");
+    let mut heap = CharString::from("abcdefghijklmnopqrstuvwxyz");
     assert_eq!(heap.remove(0), 'a');
     let cloned = heap.clone();
     assert_eq!(heap.as_ptr(), cloned.as_ptr());
@@ -445,14 +445,14 @@ fn remove_cow() {
 #[test]
 #[should_panic(expected = "index out of bounds (index: 12, len: 12)")]
 fn remove_fail() {
-    let mut s = LeanString::from("Hello World!");
+    let mut s = CharString::from("Hello World!");
     assert_eq!(s.len(), 12);
     s.remove(12);
 }
 
 #[test]
 fn retain_f_apply_count() {
-    let mut inline = LeanString::from("012");
+    let mut inline = CharString::from("012");
     let mut count = 0;
     inline.retain(|_| {
         count += 1;
@@ -460,7 +460,7 @@ fn retain_f_apply_count() {
     });
     assert_eq!(count, 3);
 
-    let mut heap = LeanString::from("abcdefghijklmnopqrstuvwxyz");
+    let mut heap = CharString::from("abcdefghijklmnopqrstuvwxyz");
     let mut count = 0;
     heap.retain(|_| {
         count += 1;
@@ -471,14 +471,14 @@ fn retain_f_apply_count() {
 
 #[test]
 fn retain_cow() {
-    let mut heap = LeanString::from("qwer tyui opas dfgh jklz xcvb nm");
+    let mut heap = CharString::from("qwer tyui opas dfgh jklz xcvb nm");
     let cloned = heap.clone();
     assert_eq!(heap.as_ptr(), cloned.as_ptr());
     heap.retain(|c| c.is_alphabetic());
     assert_eq!(heap, "qwertyuiopasdfghjklzxcvbnm");
     assert_eq!(cloned, "qwer tyui opas dfgh jklz xcvb nm");
 
-    let mut static_ = LeanString::from_static_str("aBcDeFgHiJkLmNoPqRsTuVwXyZ");
+    let mut static_ = CharString::from_static_str("aBcDeFgHiJkLmNoPqRsTuVwXyZ");
     let cloned = static_.clone();
     static_.retain(|c| c.is_lowercase());
     assert!(!cloned.is_heap_allocated());
@@ -488,7 +488,7 @@ fn retain_cow() {
 
 #[test]
 fn insert() {
-    let mut s = LeanString::from("01234");
+    let mut s = CharString::from("01234");
     s.insert(3, 'a');
     assert_eq!(s, "012a34");
     assert_eq!(s.len(), 6);
@@ -521,7 +521,7 @@ fn insert() {
 
 #[test]
 fn insert_to_static() {
-    let mut static_ = LeanString::from_static_str("01234567890123456789");
+    let mut static_ = CharString::from_static_str("01234567890123456789");
     let cloned = static_.clone();
     static_.insert(10, 'a');
     assert_eq!(static_, "0123456789a0123456789");
@@ -533,13 +533,13 @@ fn insert_to_static() {
 #[test]
 #[should_panic(expected = "index is not a char boundary or out of bounds (index: 7)")]
 fn insert_fail() {
-    let mut s = LeanString::from("012345");
+    let mut s = CharString::from("012345");
     s.insert(7, 'a');
 }
 
 #[test]
 fn repeat_inline() {
-    let s = LeanString::from("ab");
+    let s = CharString::from("ab");
     assert!(!s.is_heap_allocated());
 
     assert_eq!(s.repeat(0), "");
@@ -554,7 +554,7 @@ fn repeat_inline() {
 
 #[test]
 fn repeat_heap() {
-    let s = LeanString::from("a".repeat(INLINE_LIMIT + 1).as_str());
+    let s = CharString::from("a".repeat(INLINE_LIMIT + 1).as_str());
     assert!(s.is_heap_allocated());
 
     assert_eq!(s.repeat(0), "");
@@ -572,22 +572,22 @@ fn repeat_heap() {
 
 #[test]
 fn repeat_empty() {
-    let empty = LeanString::new();
+    let empty = CharString::new();
     assert_eq!(empty.repeat(0), "");
     assert_eq!(empty.repeat(1), "");
     assert_eq!(empty.repeat(100), "");
 }
 
 #[test]
-#[should_panic(expected = "Cannot allocate memory to hold LeanString")]
+#[should_panic(expected = "Cannot allocate memory to hold CharString")]
 fn repeat_overflow() {
-    let s = LeanString::from("ab");
+    let s = CharString::from("ab");
     let _ = s.repeat(usize::MAX);
 }
 
 #[test]
 fn truncate_keep_capacity() {
-    let mut inline = LeanString::from("abcdef");
+    let mut inline = CharString::from("abcdef");
 
     assert!(!inline.is_heap_allocated());
     inline.truncate(3);
@@ -596,7 +596,7 @@ fn truncate_keep_capacity() {
     assert!(!inline.is_heap_allocated());
     assert_eq!(inline.capacity(), INLINE_LIMIT);
 
-    let mut heap = LeanString::from("a".repeat(INLINE_LIMIT + 10).as_str());
+    let mut heap = CharString::from("a".repeat(INLINE_LIMIT + 10).as_str());
     let original_capacity = heap.capacity();
     assert!(heap.is_heap_allocated());
 
@@ -615,7 +615,7 @@ fn truncate_keep_capacity() {
 
 #[test]
 fn truncate_from_static() {
-    let mut static_ = LeanString::from_static_str("abcdefghijklmnopqrstuvwxyz");
+    let mut static_ = CharString::from_static_str("abcdefghijklmnopqrstuvwxyz");
     assert_eq!(static_.len(), 26);
     assert!(!static_.is_heap_allocated());
 
@@ -629,7 +629,7 @@ fn truncate_from_static() {
 #[test]
 fn truncate_share_buffer() {
     // s is inlined
-    let mut s = LeanString::from("abcdefgh");
+    let mut s = CharString::from("abcdefgh");
     assert_eq!(s.len(), 8);
 
     let mut s1 = s.clone();
@@ -658,7 +658,7 @@ fn truncate_share_buffer() {
 #[test]
 fn convert_static_to_inline_with_reserve() {
     let s: &'static str = "1234567890ABCDEFGHIJ";
-    let mut static_ = LeanString::from_static_str(s);
+    let mut static_ = CharString::from_static_str(s);
 
     for _ in 0..14 {
         static_.pop();
@@ -673,11 +673,11 @@ fn convert_static_to_inline_with_reserve() {
 
 #[test]
 fn clear_cow() {
-    let mut inline = LeanString::from("foo");
+    let mut inline = CharString::from("foo");
     inline.clear();
     assert_eq!(inline, "");
 
-    let mut heap: LeanString = core::iter::repeat_n('a', 100).collect();
+    let mut heap: CharString = core::iter::repeat_n('a', 100).collect();
     let cloned = heap.clone();
     heap.clear();
 
@@ -691,7 +691,7 @@ fn clear_cow() {
 
 #[test]
 fn extend_char() {
-    let mut s = LeanString::from("Hello, ");
+    let mut s = CharString::from("Hello, ");
     s.extend("world!".chars());
     assert_eq!(s, "Hello, world!");
 }
@@ -710,7 +710,7 @@ fn from_iter_drops_reserved_buffer_on_panic() {
         }
     }
 
-    let result = std::panic::catch_unwind(|| PanickingIterator.collect::<LeanString>());
+    let result = std::panic::catch_unwind(|| PanickingIterator.collect::<CharString>());
     assert!(result.is_err());
 }
 
@@ -729,35 +729,35 @@ fn from_iter_drops_prefixed_reserved_buffer_on_panic() {
         }
     }
 
-    let result = std::panic::catch_unwind(|| PanickingIterator.collect::<LeanString>());
+    let result = std::panic::catch_unwind(|| PanickingIterator.collect::<CharString>());
     assert!(result.is_err());
 }
 
 #[test]
-fn from_iter_owned_lean_strings_reuses_first() {
+fn from_iter_owned_char_strings_reuses_first() {
     let text = "abcdefghijklmnopqrstuvwxyz012345";
 
-    let s = LeanString::from(text);
+    let s = CharString::from(text);
     let s_ptr = s.as_ptr();
-    let one: LeanString = [s].into_iter().collect();
+    let one: CharString = [s].into_iter().collect();
     assert_eq!(one, "abcdefghijklmnopqrstuvwxyz012345");
     assert_eq!(one.as_ptr(), s_ptr);
 
-    let mut s = LeanString::with_capacity(128);
+    let mut s = CharString::with_capacity(128);
     s.push_str("abcdefghijklmnopqrstuvwxyz012345");
     let s_ptr = s.as_ptr();
-    let tow: LeanString = [s, LeanString::from("6789")].into_iter().collect();
+    let tow: CharString = [s, CharString::from("6789")].into_iter().collect();
     assert_eq!(tow, text.to_owned() + "6789");
     assert_eq!(tow.as_ptr(), s_ptr);
     assert_eq!(tow.capacity(), 128);
 }
 
 #[test]
-fn from_iter_owned_lean_strings_detaches_shared_first() {
-    let s = LeanString::from("abcdefghijklmnopqrstuvwxyz012345");
+fn from_iter_owned_char_strings_detaches_shared_first() {
+    let s = CharString::from("abcdefghijklmnopqrstuvwxyz012345");
     let cloned = s.clone();
     let clonded_ptr = cloned.as_ptr();
-    let collected: LeanString = [s, LeanString::from("6789")].into_iter().collect();
+    let collected: CharString = [s, CharString::from("6789")].into_iter().collect();
     assert_eq!(cloned, "abcdefghijklmnopqrstuvwxyz012345");
     assert_eq!(cloned.as_ptr(), clonded_ptr);
     assert_eq!(collected, "abcdefghijklmnopqrstuvwxyz0123456789");
@@ -765,8 +765,8 @@ fn from_iter_owned_lean_strings_detaches_shared_first() {
 }
 
 #[test]
-fn from_iter_no_owned_lean_strings_is_empty_inline() {
-    let collected: LeanString = core::iter::empty::<LeanString>().collect();
+fn from_iter_no_owned_char_strings_is_empty_inline() {
+    let collected: CharString = core::iter::empty::<CharString>().collect();
     assert!(collected.is_empty());
     assert!(!collected.is_heap_allocated());
 }

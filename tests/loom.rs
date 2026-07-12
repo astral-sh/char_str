@@ -1,7 +1,7 @@
 // RUSTFLAGS="--cfg loom" cargo test --test loom --release --features loom -- --test-threads=1
 #![cfg(loom)]
 
-use lean_string::{LeanStr, LeanString};
+use char_str::{CharStr, CharString};
 use loom::thread;
 
 #[global_allocator]
@@ -26,7 +26,7 @@ macro_rules! loom_test {
 
 loom_test! {
     fn concurrent_frozen_clone_and_thaw() {
-        let frozen = LeanStr::from("a frozen string longer than the inline limit");
+        let frozen = CharStr::from("a frozen string longer than the inline limit");
         let shared = frozen.clone();
 
         let th = thread::spawn(move || {
@@ -34,7 +34,7 @@ loom_test! {
             assert_eq!(clone, "a frozen string longer than the inline limit");
         });
 
-        let mut thawed = frozen.into_lean_string();
+        let mut thawed = frozen.into_char_string();
         thawed.push('!');
         assert_eq!(thawed, "a frozen string longer than the inline limit!");
 
@@ -44,14 +44,14 @@ loom_test! {
 
 loom_test! {
     fn concurrent_drop_and_thaw() {
-        let frozen = LeanStr::from("a frozen string longer than the inline limit");
+        let frozen = CharStr::from("a frozen string longer than the inline limit");
         let shared = frozen.clone();
 
         let th = thread::spawn(move || {
             drop(shared);
         });
 
-        let thawed = frozen.into_lean_string();
+        let thawed = frozen.into_char_string();
         assert_eq!(thawed, "a frozen string longer than the inline limit");
 
         th.join().unwrap();
@@ -60,7 +60,7 @@ loom_test! {
 
 loom_test! {
     fn concurrent_drop_and_freeze() {
-        let mut string = LeanString::with_capacity(128);
+        let mut string = CharString::with_capacity(128);
         string.push_str("a string longer than the inline limit");
         let shared = string.clone();
 
@@ -77,7 +77,7 @@ loom_test! {
 
 loom_test! {
     fn concurrent_push() {
-        let mut one = LeanString::from("12345678901234567890");
+        let mut one = CharString::from("12345678901234567890");
         let two = one.clone();
 
         let th = thread::spawn(move || {
@@ -96,7 +96,7 @@ loom_test! {
 
 loom_test! {
     fn concurrent_remove() {
-        let mut one = LeanString::from("abcdefghijklmnopqrstuvwxyz");
+        let mut one = CharString::from("abcdefghijklmnopqrstuvwxyz");
         let two = one.clone();
 
         let th = thread::spawn(move || {

@@ -1,15 +1,15 @@
 use core::hint::black_box;
 use std::time::Duration;
 
+use char_str::CharString;
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
-use lean_string::LeanString;
 
 fn reserve_and_push_paths(c: &mut Criterion) {
     let mut group = c.benchmark_group("reserve_and_push_paths");
 
     group.bench_function("push_str/inline_capacity", |b| {
         b.iter_batched(
-            || LeanString::from("inline"),
+            || CharString::from("inline"),
             |mut value| {
                 value.push_str(black_box("x"));
                 black_box(value)
@@ -21,7 +21,7 @@ fn reserve_and_push_paths(c: &mut Criterion) {
     group.bench_function("push_str/unique_heap_capacity", |b| {
         b.iter_batched(
             || {
-                let mut value = LeanString::with_capacity(256);
+                let mut value = CharString::with_capacity(256);
                 value.push_str("heap-backed text");
                 value
             },
@@ -36,7 +36,7 @@ fn reserve_and_push_paths(c: &mut Criterion) {
     group.bench_function("push_str/unique_heap_growth", |b| {
         let text = "a".repeat(64);
         b.iter_batched(
-            || LeanString::from(text.as_str()),
+            || CharString::from(text.as_str()),
             |mut value| {
                 value.push_str(black_box("0123456789abcdef"));
                 black_box(value)
@@ -47,7 +47,7 @@ fn reserve_and_push_paths(c: &mut Criterion) {
 
     group.bench_function("push_str/shared_detach", |b| {
         let text = "a".repeat(64);
-        let original = LeanString::from(text.as_str());
+        let original = CharString::from(text.as_str());
         b.iter_batched(
             || (original.clone(), original.clone()),
             |(mut value, shared)| {
@@ -61,7 +61,7 @@ fn reserve_and_push_paths(c: &mut Criterion) {
 
     group.bench_function("push_str/static_mutation", |b| {
         b.iter_batched(
-            || LeanString::from_static_str("a static string longer than inline storage"),
+            || CharString::from_static_str("a static string longer than inline storage"),
             |mut value| {
                 value.push_str(black_box("x"));
                 black_box(value)
@@ -72,7 +72,7 @@ fn reserve_and_push_paths(c: &mut Criterion) {
 
     group.bench_function("reserve/inline_capacity", |b| {
         b.iter_batched(
-            || LeanString::from("inline"),
+            || CharString::from("inline"),
             |mut value| {
                 value.reserve(black_box(1));
                 black_box(value)
@@ -84,7 +84,7 @@ fn reserve_and_push_paths(c: &mut Criterion) {
     group.bench_function("reserve/unique_heap_capacity", |b| {
         b.iter_batched(
             || {
-                let mut value = LeanString::with_capacity(256);
+                let mut value = CharString::with_capacity(256);
                 value.push_str("heap-backed text");
                 value
             },

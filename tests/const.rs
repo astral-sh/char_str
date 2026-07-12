@@ -1,6 +1,6 @@
-use lean_string::LeanString;
+use char_str::CharString;
 
-static S: LeanString = LeanString::from_static_str("hello world");
+static S: CharString = CharString::from_static_str("hello world");
 
 const STR: &str = S.as_str();
 
@@ -12,7 +12,7 @@ fn use_const() {
 #[test]
 fn const_len() {
     const {
-        let s = LeanString::from_static_str("hello");
+        let s = CharString::from_static_str("hello");
         assert!(s.len() == 5);
         s
     };
