@@ -808,10 +808,11 @@ mod internal {
 
     /// The capacity of a [`HeapBuffer`].
     ///
-    /// Maximum capacity is limited to:
+    /// The representation can store capacities up to:
     ///
     /// - (on 64-bit architecture) 2^56 - 1
-    /// - (on 32-bit architecture) 2^32 - 1
+    /// - (on 32-bit architecture) 2^32 - 1; valid growable allocations are limited further to
+    ///   2^31 - 16 by the allocation layout.
     #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub(super) struct Capacity(usize);
 
@@ -904,6 +905,17 @@ mod tests {
             exact_joined.release();
             growable.release();
         }
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    #[test]
+    fn growable_layout_rejects_capacity_past_32_bit_limit() {
+        const MAX_CAPACITY: usize = (1 << 31) - 16;
+        assert_eq!(MAX_CAPACITY, 2_147_483_632);
+        assert!(HeapBuffer::layout_from_capacity(Capacity::new(MAX_CAPACITY).unwrap()).is_ok());
+        assert!(
+            HeapBuffer::layout_from_capacity(Capacity::new(MAX_CAPACITY + 1).unwrap()).is_err()
+        );
     }
 
     #[test]

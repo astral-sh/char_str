@@ -54,3 +54,16 @@ impl StaticBuffer {
         self.len = len.to_le() | Self::TAG;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::StaticBuffer;
+
+    #[test]
+    fn static_length_limit_leaves_room_for_the_tag() {
+        #[cfg(target_pointer_width = "64")]
+        assert_eq!(StaticBuffer::MAX_LENGTH, (1 << 56) - 1);
+        #[cfg(target_pointer_width = "32")]
+        assert_eq!(StaticBuffer::MAX_LENGTH, 16_777_215);
+    }
+}

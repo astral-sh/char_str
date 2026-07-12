@@ -103,6 +103,11 @@ impl CharString {
 
     /// Creates a new [`CharString`] from a `&'static str`.
     ///
+    /// # Panics
+    ///
+    /// Panics if `text` is longer than `2^56 - 1` bytes on a 64-bit architecture or
+    /// `2^24 - 1` (`16_777_215`) bytes on a 32-bit architecture.
+    ///
     /// # Examples
     ///
     /// ```
@@ -132,7 +137,7 @@ impl CharString {
     ///
     /// - The system is out-of-memory.
     /// - On 64-bit architecture, the `capacity` is greater than `2^56 - 1`.
-    /// - On 32-bit architecture, the `capacity` is greater than `2^32 - 1`.
+    /// - On 32-bit architecture, the `capacity` is greater than `2^31 - 16` (`2_147_483_632`).
     ///
     /// If you want to handle such a problem manually, use [`CharString::try_with_capacity()`].
     ///
@@ -393,7 +398,7 @@ impl CharString {
     ///
     /// - The system is out-of-memory.
     /// - On 64-bit architecture, the `capacity` is greater than `2^56 - 1`.
-    /// - On 32-bit architecture, the `capacity` is greater than `2^32 - 1`.
+    /// - On 32-bit architecture, the `capacity` is greater than `2^31 - 16` (`2_147_483_632`).
     ///
     /// If you want to handle such a problem manually, use [`CharString::try_reserve()`].
     ///
@@ -729,8 +734,8 @@ impl CharString {
     /// 1. `idx` is larger than the [`CharString`]'s length, or if it does not lie on a [`char`]
     ///    boundary.
     /// 2. The system is out-of-memory when cloning the [`CharString`].
-    /// 3. The length of after inserting is greater than `2^56 - 1` on 64-bit architecture, or
-    ///    `2^32 - 1` on 32-bit architecture.
+    /// 3. The resulting length is greater than `2^56 - 1` on a 64-bit architecture or
+    ///    `2^31 - 16` (`2_147_483_632`) on a 32-bit architecture.
     ///
     /// For 2 and 3, if you want to handle such a problem manually, use [`CharString::try_insert()`].
     ///
@@ -774,8 +779,8 @@ impl CharString {
     ///
     /// 1. `idx` is larger than the [`CharString`]'s length, or if it does not lie on a [`char`] boundary.
     /// 2. The system is out-of-memory when cloning the [`CharString`].
-    /// 3. The length of after inserting is greater than `2^56 - 1` on 64-bit architecture, or
-    ///    `2^32 - 1` on 32-bit architecture.
+    /// 3. The resulting length is greater than `2^56 - 1` on a 64-bit architecture or
+    ///    `2^31 - 16` (`2_147_483_632`) on a 32-bit architecture.
     ///
     /// For 2 and 3, if you want to handle such a problem manually, use [`CharString::try_insert_str()`].
     ///
@@ -814,8 +819,8 @@ impl CharString {
     ///
     /// 1. The resulting capacity would overflow (`self.len() * n` exceeds `usize::MAX`).
     /// 2. The system is out-of-memory.
-    /// 3. On 64-bit architecture, the resulting length is greater than `2^56 - 1`.
-    ///    On 32-bit architecture, it is `2^32 - 1`.
+    /// 3. The resulting length is greater than `2^56 - 1` on a 64-bit architecture or
+    ///    `2^31 - 16` (`2_147_483_632`) on a 32-bit architecture.
     ///
     /// If you want to handle such a problem manually, use [`CharString::try_repeat()`].
     ///

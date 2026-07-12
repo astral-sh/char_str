@@ -33,6 +33,11 @@ impl CharStr {
     }
 
     /// Creates a `CharStr` backed directly by a static string when it does not fit inline.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `text` is longer than `2^56 - 1` bytes on a 64-bit architecture or
+    /// `2^24 - 1` (`16_777_215`) bytes on a 32-bit architecture.
     #[inline]
     pub const fn from_static_str(text: &'static str) -> Self {
         match Repr::from_static_str(text) {
