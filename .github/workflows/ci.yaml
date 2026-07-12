@@ -89,6 +89,8 @@ jobs:
             target: i686-unknown-linux-gnu
           - name: 32-bit BE
             target: powerpc-unknown-linux-gnu
+            # get-size2 unconditionally imports 64-bit atomics, which this target lacks.
+            features: --features arbitrary,salsa,serde
       fail-fast: false
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -112,8 +114,8 @@ jobs:
       - name: Test (no-default-features)
         run: cargo +nightly miri test --locked --target ${{ matrix.target }} --no-default-features
 
-      - name: Test (all-features)
-        run: cargo +nightly miri test --locked --target ${{ matrix.target }} --all-features
+      - name: Test (features)
+        run: cargo +nightly miri test --locked --target ${{ matrix.target }} ${{ matrix.features || '--all-features' }}
 
       - name: Test (race condition)
         env:
