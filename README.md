@@ -9,6 +9,15 @@ Compact owned strings with mutable and immutable variants.
 customizations for use in [Ruff](https://github.com/astral-sh/ruff) and
 [ty](https://docs.astral.sh/ty/).
 
+```rust
+use char_str::{CharStr, format_char_str};
+
+let module = "module";
+let name = format_char_str!("package.{module}");
+assert_eq!(name, "package.module");
+assert!(name.len() <= CharStr::INLINE_CAPACITY);
+```
+
 ## License
 
 This crate is licensed under the MIT license.

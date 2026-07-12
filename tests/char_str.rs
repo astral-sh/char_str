@@ -1,13 +1,43 @@
 use core::cell::Cell;
 
-use char_str::{CharStr, CharString, ReserveError};
+use char_str::{CharStr, CharString, ReserveError, format_char, format_char_str};
 
-const INLINE_LIMIT: usize = size_of::<CharStr>();
+const INLINE_LIMIT: usize = CharStr::INLINE_CAPACITY;
 
 #[test]
 fn size() {
     assert_eq!(size_of::<CharStr>(), 2 * size_of::<usize>());
     assert_eq!(size_of::<Option<CharStr>>(), size_of::<CharStr>());
+    assert_eq!(CharStr::INLINE_CAPACITY, size_of::<CharStr>());
+}
+
+#[test]
+fn format_macros() {
+    let name = "world";
+    let inline = format_char!("hello, {name}!");
+    let frozen = format_char_str!("hello, {name}!");
+    let heap = format_char_str!("a string longer than the inline limit: {name}");
+
+    assert_eq!(inline, "hello, world!");
+    assert!(!inline.is_heap_allocated());
+    assert_eq!(frozen, "hello, world!");
+    assert!(!frozen.is_heap_allocated());
+    assert_eq!(heap, "a string longer than the inline limit: world");
+    assert!(heap.is_heap_allocated());
+}
+
+#[test]
+#[should_panic(expected = "a formatting trait implementation returned an error")]
+fn format_macro_panics_if_display_fails() {
+    struct Fails;
+
+    impl core::fmt::Display for Fails {
+        fn fmt(&self, _f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            Err(core::fmt::Error)
+        }
+    }
+
+    let _ = format_char!("{Fails}");
 }
 
 #[test]

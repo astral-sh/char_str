@@ -53,6 +53,10 @@ harness = false
 name = "comparison"
 harness = false
 
+[[bench]]
+name = "formatting"
+harness = false
+
 [target.'cfg(loom)']
 dependencies.loom = { version = "0.7.2", optional = true }
 dev-dependencies.dhat = "0.3.3"
