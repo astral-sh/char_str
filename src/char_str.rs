@@ -194,7 +194,8 @@ impl Clone for CharStr {
 impl Drop for CharStr {
     #[inline]
     fn drop(&mut self) {
-        self.0.replace_inner(Repr::new());
+        // SAFETY: The representation is never accessed again after `drop` returns.
+        unsafe { self.0.release_for_drop() };
     }
 }
 

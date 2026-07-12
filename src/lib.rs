@@ -1041,15 +1041,13 @@ impl Clone for CharString {
 
 /// A [`Drop`] implementation for [`CharString`].
 ///
-/// When the last reference to a [`CharString`] is dropped:
-/// - If the string is heap-allocated, the heap memory is freed
-/// - The internal state is reset to an empty inline buffer
-///
-/// This ensures no memory leaks occur and all resources are properly cleaned up.
+/// If the string is heap-allocated, dropping it decrements the reference count and frees the heap
+/// memory when the last reference is dropped.
 impl Drop for CharString {
     #[inline]
     fn drop(&mut self) {
-        self.0.replace_inner(Repr::new());
+        // SAFETY: The representation is never accessed again after `drop` returns.
+        unsafe { self.0.release_for_drop() };
     }
 }
 
