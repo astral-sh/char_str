@@ -292,6 +292,10 @@ impl Repr {
 
     #[inline(always)]
     pub(crate) fn reserve(&mut self, additional: usize) -> Result<(), ReserveError> {
+        if additional == 0 {
+            return Ok(());
+        }
+
         let len = self.len();
         let Some(needed_capacity) = len.checked_add(additional) else {
             return reserve_overflow();

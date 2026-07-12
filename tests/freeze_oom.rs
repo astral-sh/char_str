@@ -172,4 +172,52 @@ fn fallible_heap_operations_report_allocation_failure() {
         assert_eq!(freezing.try_freeze(), Err(ReserveError));
         FAIL_NEXT_REALLOCATION.store(false, Ordering::SeqCst);
     }
+    // Reserving zero bytes must leave static storage untouched and must not allocate.
+    let mut string = CharString::from_static_str(TEXT);
+    let static_ptr = string.as_ptr();
+
+    FAIL_NEXT_ALLOCATION.store(true, Ordering::SeqCst);
+    FAIL_NEXT_REALLOCATION.store(true, Ordering::SeqCst);
+    let result = string.try_reserve(0);
+    let allocation_was_not_attempted = FAIL_NEXT_ALLOCATION.swap(false, Ordering::SeqCst);
+    let reallocation_was_not_attempted = FAIL_NEXT_REALLOCATION.swap(false, Ordering::SeqCst);
+
+    assert_eq!(result, Ok(()));
+    assert!(allocation_was_not_attempted);
+    assert!(reallocation_was_not_attempted);
+    assert_eq!(string, TEXT);
+    assert_eq!(string.as_ptr(), static_ptr);
+    assert!(!string.is_heap_allocated());
+
+    string.try_reserve(1).unwrap();
+    assert!(string.is_heap_allocated());
+    assert_ne!(string.as_ptr(), static_ptr);
+    string.push('!');
+    assert_eq!(string, "a string longer than the inline limit!");
+
+    // Reserving zero bytes must also preserve a shared heap allocation.
+    let mut string = CharString::from(TEXT);
+    let shared = string.clone();
+    let shared_ptr = string.as_ptr();
+
+    FAIL_NEXT_ALLOCATION.store(true, Ordering::SeqCst);
+    FAIL_NEXT_REALLOCATION.store(true, Ordering::SeqCst);
+    let result = string.try_reserve(0);
+    let allocation_was_not_attempted = FAIL_NEXT_ALLOCATION.swap(false, Ordering::SeqCst);
+    let reallocation_was_not_attempted = FAIL_NEXT_REALLOCATION.swap(false, Ordering::SeqCst);
+
+    assert_eq!(result, Ok(()));
+    assert!(allocation_was_not_attempted);
+    assert!(reallocation_was_not_attempted);
+    assert_eq!(string, TEXT);
+    assert_eq!(shared, TEXT);
+    assert_eq!(string.as_ptr(), shared_ptr);
+    assert_eq!(shared.as_ptr(), shared_ptr);
+
+    string.try_reserve(1).unwrap();
+    assert_ne!(string.as_ptr(), shared_ptr);
+    assert_eq!(shared.as_ptr(), shared_ptr);
+    string.push('!');
+    assert_eq!(string, "a string longer than the inline limit!");
+    assert_eq!(shared, TEXT);
 }
