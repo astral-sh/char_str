@@ -51,8 +51,11 @@ const _: () = {
 
 impl CharString {
     pub(crate) fn from_repr(repr: Repr) -> Self {
-        debug_assert!(!repr.is_exact_heap_buffer());
-        Self(repr)
+        let string = Self(repr);
+        // Keep this check in release builds: routing exact storage into a mutable string would
+        // otherwise violate the safety requirements of its mutation paths.
+        assert!(!string.0.is_exact_heap_buffer(), "CharString cannot contain exact heap storage");
+        string
     }
 
     /// Creates a new empty [`CharString`].

@@ -174,8 +174,14 @@ impl CharStr {
     }
 
     pub(crate) fn from_repr(repr: Repr) -> Self {
-        debug_assert!(!repr.is_growable_heap_buffer());
-        Self(repr)
+        let string = Self(repr);
+        // Keep this check in release builds: heap layout conversion assumes immutable strings use
+        // exact storage.
+        assert!(
+            !string.0.is_growable_heap_buffer(),
+            "CharStr cannot contain growable heap storage"
+        );
+        string
     }
 }
 

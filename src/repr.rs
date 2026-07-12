@@ -141,7 +141,9 @@ impl Repr {
 
         // SAFETY: We just checked that `self` is a heap buffer.
         let heap = unsafe { self.as_heap_buffer_mut() };
-        debug_assert!(!heap.is_exact());
+        // This is a safe conversion boundary; calling the layout-changing unsafe operation below
+        // with exact storage would be unsound.
+        assert!(!heap.is_exact(), "growable heap storage required");
 
         if heap.is_unique() {
             // SAFETY: `heap` is growable and uniquely owned.
@@ -166,7 +168,9 @@ impl Repr {
 
         // SAFETY: We just checked that `self` is a heap buffer.
         let heap = unsafe { self.as_heap_buffer_mut() };
-        debug_assert!(heap.is_exact());
+        // This is a safe conversion boundary; calling the layout-changing unsafe operation below
+        // with growable storage would be unsound.
+        assert!(heap.is_exact(), "exact heap storage required");
 
         if heap.is_unique() {
             // SAFETY: `heap` is exact and uniquely owned.
@@ -935,4 +939,38 @@ fn reserve_static(
 fn reserve_inline(repr: &mut Repr, additional: usize) -> Result<(), ReserveError> {
     *repr = Repr::from_heap(HeapBuffer::with_additional(repr.as_str(), additional)?);
     Ok(())
+}
+
+#[cfg(test)]
+mod invariant_tests {
+    extern crate std;
+
+    use super::Repr;
+    use std::panic::{AssertUnwindSafe, catch_unwind};
+
+    const TEXT: &str = "a string longer than the inline limit";
+
+    #[test]
+    fn conversions_reject_the_wrong_heap_storage_kind() {
+        let mut exact = Repr::from_exact_str(TEXT).unwrap();
+        let result = catch_unwind(AssertUnwindSafe(|| exact.make_exact()));
+        // SAFETY: The retained assertion fires before the representation can be modified.
+        unsafe { exact.release_for_drop() };
+        assert!(result.is_err());
+
+        let mut growable = Repr::from_str(TEXT).unwrap();
+        let result = catch_unwind(AssertUnwindSafe(|| growable.make_growable()));
+        // SAFETY: The retained assertion fires before the representation can be modified.
+        unsafe { growable.release_for_drop() };
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn wrappers_reject_the_wrong_heap_storage_kind() {
+        let exact = Repr::from_exact_str(TEXT).unwrap();
+        assert!(catch_unwind(|| crate::CharString::from_repr(exact)).is_err());
+
+        let growable = Repr::from_str(TEXT).unwrap();
+        assert!(catch_unwind(|| crate::CharStr::from_repr(growable)).is_err());
+    }
 }
