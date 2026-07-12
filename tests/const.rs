@@ -6,7 +6,7 @@ const STR: &str = S.as_str();
 
 #[test]
 fn use_const() {
-    assert_eq!(STR, "hello world");
+    assert!(STR.eq("hello world"));
 }
 
 #[test]

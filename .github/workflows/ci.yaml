@@ -46,8 +46,7 @@ jobs:
       - name: Lint check
         run: |
           cargo check --locked --all-features
-          cargo clippy --locked --all-features
-          cargo clippy --locked --all-features --benches
+          cargo clippy --locked --all-targets --all-features
 
   test:
     name: Test

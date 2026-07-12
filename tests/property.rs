@@ -110,6 +110,71 @@ macro_rules! prop_test_integer_to_char_string {
 }
 prop_test_integer_to_char_string!(u16, i16, u32, i32, u64, i64, u128, i128, usize, isize);
 
+macro_rules! test_unsigned_integer_boundaries {
+    ($($ty:ty),* $(,)?) => {$(
+        paste::paste! {
+            #[test]
+            fn [<$ty _to_char_string_boundaries>]() {
+                let check = |value: $ty| {
+                    assert_eq!(value.to_char_string(), value.to_string());
+                    if let Some(value) = core::num::NonZero::<$ty>::new(value) {
+                        assert_eq!(value.to_char_string(), value.to_string());
+                    }
+                };
+
+                check(<$ty>::MIN);
+                check(<$ty>::MAX);
+
+                let mut power: $ty = 1;
+                loop {
+                    check(power.saturating_sub(1));
+                    check(power);
+                    check(power.saturating_add(1));
+                    let Some(next) = power.checked_mul(10) else { break };
+                    power = next;
+                }
+            }
+        }
+    )*};
+}
+
+macro_rules! test_signed_integer_boundaries {
+    ($($ty:ty),* $(,)?) => {$(
+        paste::paste! {
+            #[test]
+            fn [<$ty _to_char_string_boundaries>]() {
+                let check = |value: $ty| {
+                    assert_eq!(value.to_char_string(), value.to_string());
+                    if let Some(value) = core::num::NonZero::<$ty>::new(value) {
+                        assert_eq!(value.to_char_string(), value.to_string());
+                    }
+                };
+
+                check(<$ty>::MIN);
+                check(<$ty>::MAX);
+
+                let mut power: $ty = 1;
+                loop {
+                    check(power.saturating_sub(1));
+                    check(power);
+                    check(power.saturating_add(1));
+
+                    let negative = -power;
+                    check(negative.saturating_sub(1));
+                    check(negative);
+                    check(negative.saturating_add(1));
+
+                    let Some(next) = power.checked_mul(10) else { break };
+                    power = next;
+                }
+            }
+        }
+    )*};
+}
+
+test_unsigned_integer_boundaries!(u16, u32, u64, u128, usize);
+test_signed_integer_boundaries!(i16, i32, i64, i128, isize);
+
 #[property_test]
 #[cfg_attr(miri, ignore)]
 fn f32_to_char_string(f: f32) {
