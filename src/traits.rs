@@ -1,4 +1,4 @@
-use crate::{CharString, ToCharStringError, UnwrapWithMsg, repr::Repr};
+use crate::{CharString, ReserveError, ToCharStringError, UnwrapWithMsg, repr::Repr};
 use alloc::string::String;
 use castaway::{LifetimeFree, match_type};
 use core::{fmt, fmt::Write, num::NonZero};
@@ -64,9 +64,34 @@ impl<T: fmt::Display> ToCharString for T {
             &CharString as s => return Ok(s.clone()),
 
             s => {
-                let mut buf = CharString::new();
-                write!(buf, "{}", s)?;
-                return Ok(buf)
+                struct FallibleWriter {
+                    string: CharString,
+                    reserve_error: Option<ReserveError>,
+                }
+
+                impl fmt::Write for FallibleWriter {
+                    fn write_str(&mut self, s: &str) -> fmt::Result {
+                        if self.reserve_error.is_some() {
+                            return Err(fmt::Error);
+                        }
+
+                        self.string.try_push_str(s).map_err(|error| {
+                            self.reserve_error = Some(error);
+                            fmt::Error
+                        })
+                    }
+                }
+
+                let mut writer = FallibleWriter {
+                    string: CharString::new(),
+                    reserve_error: None,
+                };
+                let result = write!(writer, "{}", s);
+                return match (result, writer.reserve_error) {
+                    (_, Some(error)) => Err(ToCharStringError::Reserve(error)),
+                    (Ok(()), None) => Ok(writer.string),
+                    (Err(error), None) => Err(ToCharStringError::Fmt(error)),
+                }
             }
         });
         Ok(CharString(repr))

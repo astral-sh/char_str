@@ -1,10 +1,10 @@
 use std::{
     alloc::{GlobalAlloc, Layout, System},
-    ptr,
+    fmt, ptr,
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use char_str::{CharStr, CharString, ReserveError};
+use char_str::{CharStr, CharString, ReserveError, ToCharString, ToCharStringError};
 
 struct FailNextAllocation;
 
@@ -93,4 +93,60 @@ fn fallible_heap_conversions_report_allocation_failure() {
     FAIL_NEXT_ALLOCATION.store(false, Ordering::SeqCst);
 
     assert_eq!(result, Err(ReserveError));
+
+    struct LongDisplay;
+
+    impl fmt::Display for LongDisplay {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str(TEXT)
+        }
+    }
+
+    FAIL_NEXT_ALLOCATION.store(true, Ordering::SeqCst);
+    let result = LongDisplay.try_to_char_string();
+    FAIL_NEXT_ALLOCATION.store(false, Ordering::SeqCst);
+
+    assert_eq!(result, Err(ToCharStringError::Reserve(ReserveError)));
+
+    struct SwallowingDisplay;
+
+    impl fmt::Display for SwallowingDisplay {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let _ = f.write_str(TEXT);
+            Ok(())
+        }
+    }
+
+    FAIL_NEXT_ALLOCATION.store(true, Ordering::SeqCst);
+    let result = SwallowingDisplay.try_to_char_string();
+    FAIL_NEXT_ALLOCATION.store(false, Ordering::SeqCst);
+
+    assert_eq!(result, Err(ToCharStringError::Reserve(ReserveError)));
+
+    struct RetryingDisplay;
+
+    impl fmt::Display for RetryingDisplay {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            assert!(f.write_str(TEXT).is_err());
+            assert!(f.write_str("tail").is_err());
+            Ok(())
+        }
+    }
+
+    FAIL_NEXT_ALLOCATION.store(true, Ordering::SeqCst);
+    let result = RetryingDisplay.try_to_char_string();
+    FAIL_NEXT_ALLOCATION.store(false, Ordering::SeqCst);
+
+    assert_eq!(result, Err(ToCharStringError::Reserve(ReserveError)));
+
+    struct FailingDisplay;
+
+    impl fmt::Display for FailingDisplay {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str("prefix")?;
+            Err(fmt::Error)
+        }
+    }
+
+    assert_eq!(FailingDisplay.try_to_char_string(), Err(ToCharStringError::Fmt(fmt::Error)));
 }
