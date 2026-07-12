@@ -139,6 +139,11 @@ impl CharStr {
         self.0.is_heap_buffer()
     }
 
+    #[cfg(feature = "get-size")]
+    pub(crate) fn heap_allocation_size(&self) -> usize {
+        self.0.heap_allocation_size()
+    }
+
     /// Converts this value into a mutable [`CharString`].
     ///
     /// Unique exact heap storage is converted to growable storage with `realloc`. Shared heap

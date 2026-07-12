@@ -195,6 +195,13 @@ impl HeapBuffer {
         self.len.is_exact()
     }
 
+    #[cfg(feature = "get-size")]
+    pub(super) fn allocation_size(&self) -> usize {
+        self.header_offset()
+            + self.capacity()
+            + usize::from(self.has_heap_len_layout()) * size_of::<usize>()
+    }
+
     pub(crate) fn ptr(&self) -> NonNull<u8> {
         self.ptr
     }

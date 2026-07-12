@@ -8,6 +8,7 @@
 
 - Forked `lean_string` as `char_str` for use in Ruff and ty.
 - Renamed `LeanString` to `CharString` and `LeanStr` to `CharStr`.
+- Added optional `salsa` and `get-size` integrations for ty.
 
 ## [0.6.1] - 2026-07-08
 
