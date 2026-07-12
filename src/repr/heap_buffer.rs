@@ -948,4 +948,57 @@ mod tests {
         // SAFETY: `buffer` is the only live reference and is not accessed afterward.
         unsafe { buffer.release() };
     }
+
+    #[cfg(target_pointer_width = "32")]
+    #[test]
+    fn realloc_growable_across_heap_length_prefix() {
+        const INLINE_LENGTH_LIMIT: usize = (1 << 24) - 2;
+        const PREFIXED_CAPACITY: usize = 1 << 24;
+
+        let mut buffer = HeapBuffer::with_exact_capacity("short", INLINE_LENGTH_LIMIT).unwrap();
+        assert!(!buffer.has_heap_len_layout());
+
+        // SAFETY: `buffer` is the only reference to this growable allocation.
+        unsafe { buffer.realloc(PREFIXED_CAPACITY).unwrap() };
+
+        assert!(buffer.has_heap_len_layout());
+        assert_eq!(buffer.as_str(), "short");
+        assert_eq!(buffer.capacity(), PREFIXED_CAPACITY);
+
+        // SAFETY: `buffer` is the only reference to this growable allocation.
+        unsafe { buffer.realloc(INLINE_LENGTH_LIMIT).unwrap() };
+
+        assert!(!buffer.has_heap_len_layout());
+        assert_eq!(buffer.as_str(), "short");
+        assert_eq!(buffer.capacity(), INLINE_LENGTH_LIMIT);
+
+        // SAFETY: `buffer` is the only live reference and is not accessed afterward.
+        unsafe { buffer.release() };
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    #[test]
+    fn realloc_between_prefixed_exact_and_growable_layouts() {
+        let text = "a".repeat(1 << 24);
+        let mut buffer = HeapBuffer::new_exact(&text).unwrap();
+        assert!(buffer.is_exact());
+        assert!(buffer.has_heap_len_layout());
+
+        // SAFETY: `buffer` is the only reference to this exact allocation.
+        unsafe { buffer.realloc_into_growable().unwrap() };
+
+        assert!(!buffer.is_exact());
+        assert!(buffer.has_heap_len_layout());
+        assert_eq!(buffer.as_str(), text);
+
+        // SAFETY: `buffer` is the only reference to this growable allocation.
+        unsafe { buffer.realloc_into_exact().unwrap() };
+
+        assert!(buffer.is_exact());
+        assert!(buffer.has_heap_len_layout());
+        assert_eq!(buffer.as_str(), text);
+
+        // SAFETY: `buffer` is the only live reference and is not accessed afterward.
+        unsafe { buffer.release() };
+    }
 }
