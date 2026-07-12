@@ -66,6 +66,40 @@ fn comparisons_fall_back_to_content() {
 }
 
 #[test]
+fn short_comparisons_ignore_unused_capacity() {
+    for len in 0..=INLINE_LIMIT {
+        let text = "a".repeat(len);
+        let exact = CharStr::from(text.as_str());
+        let growable = CharString::from(text.as_str());
+
+        assert_eq!(exact, CharStr::from(text.as_str()));
+        assert_eq!(exact, growable);
+        assert_eq!(growable, exact);
+
+        let mut truncated_inline = CharString::from("z".repeat(INLINE_LIMIT).as_str());
+        truncated_inline.clear();
+        truncated_inline.push_str(&text);
+        assert_eq!(truncated_inline, growable);
+        assert_eq!(truncated_inline.freeze(), exact);
+
+        let mut truncated_heap = CharString::from("a".repeat(INLINE_LIMIT + 1).as_str());
+        truncated_heap.truncate(len);
+        assert!(truncated_heap.is_heap_allocated());
+        assert_eq!(truncated_heap, growable);
+
+        if len > 0 {
+            let first = format!("b{}", "a".repeat(len - 1));
+            let last = format!("{}b", "a".repeat(len - 1));
+
+            assert_ne!(exact, CharStr::from(first.as_str()));
+            assert_ne!(exact, CharStr::from(last.as_str()));
+            assert_ne!(growable, CharString::from(first.as_str()));
+            assert_ne!(growable, CharString::from(last.as_str()));
+        }
+    }
+}
+
+#[test]
 fn concat_accepts_as_ref_str() {
     let slices = [String::from("prefix"), String::from("suffix")];
 

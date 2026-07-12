@@ -8,6 +8,8 @@ use criterion::{
 };
 
 const STRING_LENGTHS: [usize; 4] = [8, 17, 64, 4096];
+const EQUALITY_LENGTHS: [usize; 19] =
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 64, 4096];
 
 fn text_with_byte(len: usize, index: usize, byte: u8) -> String {
     let mut text = vec![b'a'; len];
@@ -42,7 +44,12 @@ fn bench_cmp<T: Ord>(
 fn equality(c: &mut Criterion) {
     let mut group = c.benchmark_group("comparison/equality");
 
-    for len in STRING_LENGTHS {
+    let empty_str = CharStr::new();
+    let empty_string = CharString::new();
+    bench_eq(&mut group, "char_str/distinct_equal", 0, &empty_str, &CharStr::new());
+    bench_eq(&mut group, "char_string/distinct_equal", 0, &empty_string, &CharString::new());
+
+    for len in EQUALITY_LENGTHS {
         group.throughput(Throughput::Bytes(len as u64));
 
         let text = "a".repeat(len);

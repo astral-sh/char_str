@@ -273,7 +273,19 @@ impl Repr {
         let other = other.as_bytes();
 
         // Shared growable and static buffers can have per-handle logical lengths.
-        this.len() == other.len() && (ptr::eq(this.as_ptr(), other.as_ptr()) || this == other)
+        if this.len() != other.len() {
+            return false;
+        }
+
+        if ptr::eq(this.as_ptr(), other.as_ptr()) {
+            return true;
+        }
+
+        if this.len() <= MAX_INLINE_SIZE {
+            return short_bytes_eq(this, other);
+        }
+
+        this == other
     }
 
     #[inline]
@@ -869,6 +881,45 @@ impl Repr {
     unsafe fn as_static_buffer_mut(&mut self) -> &mut StaticBuffer {
         // SAFETY: A `Repr` is transmuted from `StaticBuffer`
         unsafe { &mut *(self as *mut _ as *mut StaticBuffer) }
+    }
+}
+
+#[inline(always)]
+fn short_bytes_eq(left: &[u8], right: &[u8]) -> bool {
+    debug_assert_eq!(left.len(), right.len());
+    debug_assert!(left.len() <= MAX_INLINE_SIZE);
+
+    let len = left.len();
+    let left = left.as_ptr();
+    let right = right.as_ptr();
+
+    macro_rules! compare_head_and_tail {
+        ($word:ty) => {{
+            let word_len = size_of::<$word>();
+
+            // SAFETY: The caller selected a word no larger than `len`. Both slices have the
+            // same length, so their first and last words are initialized and in bounds.
+            unsafe {
+                let head =
+                    left.cast::<$word>().read_unaligned() ^ right.cast::<$word>().read_unaligned();
+                let tail = left.add(len - word_len).cast::<$word>().read_unaligned()
+                    ^ right.add(len - word_len).cast::<$word>().read_unaligned();
+                (head | tail) == 0
+            }
+        }};
+    }
+
+    if len >= size_of::<u64>() {
+        compare_head_and_tail!(u64)
+    } else if len >= size_of::<u32>() {
+        compare_head_and_tail!(u32)
+    } else if len >= size_of::<u16>() {
+        compare_head_and_tail!(u16)
+    } else if len == 1 {
+        // SAFETY: Both slices contain one initialized byte.
+        unsafe { *left == *right }
+    } else {
+        true
     }
 }
 
