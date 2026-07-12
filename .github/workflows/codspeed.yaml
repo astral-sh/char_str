@@ -29,10 +29,10 @@ jobs:
         run: cargo install cargo-codspeed --locked --version 5.0.1
 
       - name: Build benchmarks
-        run: cargo codspeed build --measurement-mode simulation --measurement-mode memory
+        run: cargo codspeed build --measurement-mode simulation
 
       - name: Run benchmarks
         uses: CodSpeedHQ/action@a4a36bb07c0638b0b4ca52bf1f3dad1b4289e52f # v4.18.1
         with:
-          mode: simulation,memory
+          mode: simulation
           run: cargo codspeed run
