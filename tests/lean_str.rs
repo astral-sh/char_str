@@ -31,6 +31,14 @@ fn clone_shares_heap_storage() {
 }
 
 #[test]
+fn concat_accepts_as_ref_str() {
+    let slices = [String::from("prefix"), String::from("suffix")];
+
+    assert_eq!(LeanStr::concat(&slices), "prefixsuffix");
+    assert_eq!(LeanStr::try_concat(&slices).unwrap(), "prefixsuffix");
+}
+
+#[test]
 fn join_uses_smallest_storage_kind() {
     let empty = LeanStr::join::<&str>(&[], ".");
     let inline_text = "x".repeat(INLINE_LIMIT);
