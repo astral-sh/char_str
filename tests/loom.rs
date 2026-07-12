@@ -1,7 +1,7 @@
 // RUSTFLAGS="--cfg loom" cargo test --test loom --release --features loom -- --test-threads=1
 #![cfg(loom)]
 
-use lean_string::LeanString;
+use lean_string::{LeanStr, LeanString};
 use loom::thread;
 
 #[global_allocator]
@@ -22,6 +22,57 @@ macro_rules! loom_test {
             });
         }
     };
+}
+
+loom_test! {
+    fn concurrent_frozen_clone_and_thaw() {
+        let frozen = LeanStr::from("a frozen string longer than the inline limit");
+        let shared = frozen.clone();
+
+        let th = thread::spawn(move || {
+            let clone = shared.clone();
+            assert_eq!(clone, "a frozen string longer than the inline limit");
+        });
+
+        let mut thawed = frozen.into_lean_string();
+        thawed.push('!');
+        assert_eq!(thawed, "a frozen string longer than the inline limit!");
+
+        th.join().unwrap();
+    }
+}
+
+loom_test! {
+    fn concurrent_drop_and_thaw() {
+        let frozen = LeanStr::from("a frozen string longer than the inline limit");
+        let shared = frozen.clone();
+
+        let th = thread::spawn(move || {
+            drop(shared);
+        });
+
+        let thawed = frozen.into_lean_string();
+        assert_eq!(thawed, "a frozen string longer than the inline limit");
+
+        th.join().unwrap();
+    }
+}
+
+loom_test! {
+    fn concurrent_drop_and_freeze() {
+        let mut string = LeanString::with_capacity(128);
+        string.push_str("a string longer than the inline limit");
+        let shared = string.clone();
+
+        let th = thread::spawn(move || {
+            drop(shared);
+        });
+
+        let frozen = string.freeze();
+        assert_eq!(frozen, "a string longer than the inline limit");
+
+        th.join().unwrap();
+    }
 }
 
 loom_test! {

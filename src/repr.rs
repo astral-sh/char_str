@@ -56,6 +56,16 @@ impl Repr {
     }
 
     #[inline]
+    pub(crate) fn from_exact_str(text: &str) -> Result<Self, ReserveError> {
+        if text.len() <= MAX_INLINE_SIZE {
+            // SAFETY: `text.len()` is less than or equal to `MAX_INLINE_SIZE`.
+            Ok(Repr::from_inline(unsafe { InlineBuffer::new(text) }))
+        } else {
+            HeapBuffer::new_exact(text).map(Repr::from_heap)
+        }
+    }
+
+    #[inline]
     pub(crate) fn from_char(ch: char) -> Self {
         let inline = unsafe {
             let mut buffer = [0; 4];
@@ -102,6 +112,56 @@ impl Repr {
         }
     }
 
+    /// Converts growable heap storage to exact heap storage.
+    ///
+    /// Inline and static storage are left unchanged. A unique heap allocation is converted with
+    /// `realloc`; shared heap storage is copied into a new exact allocation.
+    pub(crate) fn make_exact(&mut self) -> Result<(), ReserveError> {
+        if !self.is_heap_buffer() {
+            return Ok(());
+        }
+
+        // SAFETY: We just checked that `self` is a heap buffer.
+        let heap = unsafe { self.as_heap_buffer_mut() };
+        debug_assert!(!heap.is_exact());
+
+        if heap.is_unique() {
+            // SAFETY: `heap` is growable and uniquely owned.
+            unsafe { heap.realloc_into_exact() }
+        } else {
+            let new_heap = HeapBuffer::new_exact(heap.as_str())?;
+            // SAFETY: `self` is overwritten immediately below and `heap` is not accessed again.
+            unsafe { heap.release() };
+            *self = Repr::from_heap(new_heap);
+            Ok(())
+        }
+    }
+
+    /// Converts exact heap storage to growable heap storage.
+    ///
+    /// Inline and static storage are left unchanged. A unique heap allocation is converted with
+    /// `realloc`; shared heap storage is copied into a new growable allocation.
+    pub(crate) fn make_growable(&mut self) -> Result<(), ReserveError> {
+        if !self.is_heap_buffer() {
+            return Ok(());
+        }
+
+        // SAFETY: We just checked that `self` is a heap buffer.
+        let heap = unsafe { self.as_heap_buffer_mut() };
+        debug_assert!(heap.is_exact());
+
+        if heap.is_unique() {
+            // SAFETY: `heap` is exact and uniquely owned.
+            unsafe { heap.realloc_into_growable() }
+        } else {
+            let new_heap = HeapBuffer::new(heap.as_str())?;
+            // SAFETY: `self` is overwritten immediately below and `heap` is not accessed again.
+            unsafe { heap.release() };
+            *self = Repr::from_heap(new_heap);
+            Ok(())
+        }
+    }
+
     #[cfg(target_pointer_width = "64")]
     #[inline]
     pub(crate) const fn len(&self) -> usize {
@@ -123,7 +183,7 @@ impl Repr {
         };
 
         // This code is compiled to a single branchless instruction, such as `cmov`
-        if last_byte < LastByte::HeapMarker as u8 {
+        if last_byte < LastByte::ExactHeapMarker as u8 {
             len = inline_len
         }
 
@@ -178,7 +238,7 @@ impl Repr {
     pub(crate) const fn as_bytes(&self) -> &[u8] {
         let len = self.len();
 
-        let ptr = if self.last_byte() >= LastByte::HeapMarker as u8 {
+        let ptr = if self.last_byte() >= LastByte::ExactHeapMarker as u8 {
             self.0 as *const u8
         } else {
             self as *const _ as *const u8
@@ -197,6 +257,7 @@ impl Repr {
         if self.is_heap_buffer() {
             // SAFETY: We just checked that `self` is HeapBuffer
             let heap = unsafe { self.as_heap_buffer_mut() };
+            debug_assert!(!heap.is_exact());
 
             if heap.is_unique() {
                 if heap.capacity() >= needed_capacity {
@@ -255,6 +316,7 @@ impl Repr {
 
         // SAFETY: We did early return if the buffer is not HeapBuffer.
         let heap = unsafe { self.as_heap_buffer_mut() };
+        debug_assert!(!heap.is_exact());
 
         let new_capacity = heap.len().max(min_capacity);
         let old_capacity = heap.capacity();
@@ -439,6 +501,10 @@ impl Repr {
             "index is not a char boundary or out of bounds (index: {idx})",
         );
 
+        if string.is_empty() {
+            return Ok(());
+        }
+
         let new_len = self.len().checked_add(string.len()).ok_or(ReserveError)?;
 
         // reserve makes self unique and modifiable
@@ -491,6 +557,7 @@ impl Repr {
         if self.is_heap_buffer() {
             // SAFETY: We just checked that `self` is HeapBuffer
             let heap = unsafe { self.as_heap_buffer_mut() };
+            debug_assert!(!heap.is_exact());
 
             if !heap.is_len_on_heap() {
                 // Since len is inlined and we don't modify the buffer by popping a char, it is ok
@@ -535,6 +602,20 @@ impl Repr {
             unsafe { self.as_heap_buffer() }.is_unique()
         } else {
             true
+        }
+    }
+
+    #[inline]
+    pub(crate) fn clear(&mut self) {
+        debug_assert!(!self.is_exact_heap_buffer());
+        if self.is_unique() {
+            // SAFETY:
+            // - `self` is unique.
+            // - A heap buffer is growable.
+            // - 0 bytes is always initialized and valid UTF-8.
+            unsafe { self.set_len(0) };
+        } else {
+            self.replace_inner(Repr::new());
         }
     }
 
@@ -590,6 +671,17 @@ impl Repr {
 
     #[inline(always)]
     pub(crate) const fn is_heap_buffer(&self) -> bool {
+        let last_byte = self.last_byte();
+        last_byte == LastByte::ExactHeapMarker as u8 || last_byte == LastByte::HeapMarker as u8
+    }
+
+    #[inline(always)]
+    pub(crate) const fn is_exact_heap_buffer(&self) -> bool {
+        self.last_byte() == LastByte::ExactHeapMarker as u8
+    }
+
+    #[inline(always)]
+    pub(crate) const fn is_growable_heap_buffer(&self) -> bool {
         self.last_byte() == LastByte::HeapMarker as u8
     }
 
@@ -608,11 +700,12 @@ impl Repr {
         if self.is_heap_buffer() {
             // SAFETY: we just checked self is HeapBuffer
             let heap = unsafe { self.as_heap_buffer_mut() };
+            debug_assert!(!heap.is_exact());
 
             if !heap.is_unique() {
-                // `heap` is shared, we need to create a new buffer.
+                // Shared buffers need a new growable allocation.
                 let str = heap.as_str();
-                let new_heap = HeapBuffer::new(str)?;
+                let new_heap = HeapBuffer::with_exact_capacity(str, str.len())?;
                 // SAFETY: `self` is overwritten immediately below and `heap` is not accessed again.
                 unsafe { heap.release() };
                 *self = Repr::from_heap(new_heap);
@@ -621,7 +714,12 @@ impl Repr {
             }
         } else if self.is_static_buffer() {
             // StaticBuffer is immutable, need to convert to other buffer.
-            let next = Repr::from_str(self.as_str())?;
+            let next = if self.len() <= MAX_INLINE_SIZE {
+                // SAFETY: The length was checked above.
+                Repr::from_inline(unsafe { InlineBuffer::new(self.as_str()) })
+            } else {
+                Repr::from_heap(HeapBuffer::with_exact_capacity(self.as_str(), self.len())?)
+            };
             self.replace_inner(next);
         }
         Ok(())
@@ -632,11 +730,13 @@ impl Repr {
     /// # Safety
     /// - The buffer is not StaticBuffer
     /// - If the buffer is HeapBuffer, it must be unique.
+    /// - If the buffer is HeapBuffer, it must be growable.
     ///
     /// Only the bytes in `0..self.len()` are initialized. The bytes from `self.len()` to
     /// `self.capacity()` may be uninitialized and must not be used to create references to `u8`.
     unsafe fn as_mut_ptr(&mut self) -> *mut u8 {
         debug_assert!(!self.is_static_buffer());
+        debug_assert!(!self.is_exact_heap_buffer());
 
         if self.is_heap_buffer() {
             let ptr = self.0 as *mut u8;
@@ -653,6 +753,7 @@ impl Repr {
     /// - `new_len` must be less than or equal to `capacity()`
     /// - The elements at `0..new_len` must be initialized and valid UTF-8.
     /// - If the underlying buffer is a `HeapBuffer`, it must be unique.
+    /// - If the underlying buffer is a `HeapBuffer`, it must be growable.
     /// - If the underlying buffer is a `InlineBuffer`, `new_len <= MAX_INLINE_SIZE` must be true.
     #[inline]
     pub(crate) unsafe fn set_len(&mut self, new_len: usize) {
@@ -667,6 +768,7 @@ impl Repr {
             // SAFETY:
             // - We just checked that `self` is HeapBuffer.
             // - From `#Safety`, the buffer is unique.
+            // - From `#Safety`, the buffer is growable.
             unsafe { self.as_heap_buffer_mut().set_len(new_len) };
         } else {
             // SAFETY:

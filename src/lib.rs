@@ -24,6 +24,9 @@ use std::ffi::OsStr;
 mod repr;
 use repr::Repr;
 
+mod lean_str;
+pub use lean_str::LeanStr;
+
 mod errors;
 pub use errors::*;
 
@@ -33,6 +36,9 @@ pub use traits::ToLeanString;
 mod features;
 
 /// Compact, clone-on-write, UTF-8 encoded, growable string type.
+///
+/// Heap allocations store a capacity and are always growable. Use [`LeanString::freeze`] to
+/// convert to the capacity-less heap representation used by [`LeanStr`].
 #[repr(transparent)]
 pub struct LeanString(Repr);
 
@@ -44,6 +50,11 @@ const _: () = {
 };
 
 impl LeanString {
+    pub(crate) fn from_repr(repr: Repr) -> Self {
+        debug_assert!(!repr.is_exact_heap_buffer());
+        Self(repr)
+    }
+
     /// Creates a new empty [`LeanString`].
     ///
     /// Same as [`String::new()`], this will not allocate on the heap.
@@ -59,6 +70,35 @@ impl LeanString {
     #[inline]
     pub const fn new() -> Self {
         LeanString(Repr::new())
+    }
+
+    /// Converts this value into an immutable, exactly allocated [`LeanStr`].
+    ///
+    /// Unique growable heap storage is converted to exact storage with `realloc`. Shared heap
+    /// storage is copied into a new exact allocation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if converting heap storage fails. To handle allocation failure, use
+    /// [`LeanString::try_freeze()`].
+    #[inline]
+    pub fn freeze(self) -> LeanStr {
+        self.try_freeze().unwrap_with_msg()
+    }
+
+    /// Tries to convert this value into an immutable, exactly allocated [`LeanStr`].
+    ///
+    /// Inline and static storage are transferred without reallocating. Unique growable heap
+    /// storage is converted with `realloc`, while shared heap storage is copied.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ReserveError`] if converting heap storage fails. Because this method consumes
+    /// `self`, the original [`LeanString`] is dropped on failure.
+    #[inline]
+    pub fn try_freeze(mut self) -> Result<LeanStr, ReserveError> {
+        self.0.make_exact()?;
+        Ok(LeanStr::from_repr(core::mem::replace(&mut self.0, Repr::new())))
     }
 
     /// Creates a new [`LeanString`] from a `&'static str`.
@@ -287,9 +327,9 @@ impl LeanString {
 
     /// Returns the capacity of the [`LeanString`], in bytes.
     ///
-    /// A [`LeanString`] will inline strings if the length is less than or equal to
-    /// `2 * size_of::<usize>()` bytes. This means that the minimum capacity of a [`LeanString`]
-    /// is `2 * size_of::<usize>()` bytes.
+    /// Inline values have a capacity of `2 * size_of::<usize>()` bytes. Heap values return their
+    /// stored growable capacity. A heap-allocated [`LeanStr`] remains heap-allocated when converted
+    /// to growable storage, so the resulting capacity can be smaller than the inline capacity.
     ///
     /// # Examples
     ///
@@ -903,14 +943,14 @@ impl LeanString {
         Ok(other)
     }
 
-    /// Reduces the length of the [`LeanString`] to zero.
+    /// Reduces the length of the [`LeanString`] to zero without allocating.
     ///
-    /// If the [`LeanString`] is unique, this method will not change the capacity.
-    /// Otherwise, creates a new unique [`LeanString`] without heap allocation.
+    /// If the [`LeanString`] has a unique growable buffer, this method will not change the
+    /// capacity. Shared heap buffers are released, leaving an empty inline [`LeanString`].
     ///
     /// # Examples
     ///
-    /// ## unique
+    /// ## unique growable buffer
     ///
     /// ```
     /// # use lean_string::LeanString;
@@ -923,7 +963,7 @@ impl LeanString {
     /// assert_eq!(s.capacity(), 38);
     /// ```
     ///
-    /// ## not unique
+    /// ## shared growable buffer
     ///
     /// ```
     /// # use lean_string::LeanString;
@@ -938,14 +978,7 @@ impl LeanString {
     /// ```
     #[inline]
     pub fn clear(&mut self) {
-        if self.0.is_unique() {
-            // SAFETY:
-            // - `self` is unique.
-            // - 0 bytes is always valid UTF-8, and initialized.
-            unsafe { self.0.set_len(0) }
-        } else {
-            self.0.replace_inner(Repr::new());
-        }
+        self.0.clear();
     }
 
     /// Returns whether the [`LeanString`] is heap-allocated.

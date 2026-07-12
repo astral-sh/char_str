@@ -4,8 +4,40 @@
 // because they are UB (not logic errors). Miri with preemption is the right tool: it explores
 // thread interleavings and flags reads/writes to deallocated memory.
 
-use lean_string::LeanString;
+use lean_string::{LeanStr, LeanString};
 use std::thread;
+
+#[test]
+fn drop_while_mutating_thawed_string() {
+    let frozen = LeanStr::from("a frozen string longer than the inline limit");
+    let shared = frozen.clone();
+
+    let th = thread::spawn(move || {
+        drop(shared);
+    });
+
+    let mut thawed = frozen.into_lean_string();
+    thawed.push('!');
+    assert_eq!(thawed, "a frozen string longer than the inline limit!");
+
+    th.join().unwrap();
+}
+
+#[test]
+fn drop_while_freezing_string() {
+    let mut string = LeanString::with_capacity(128);
+    string.push_str("a string longer than the inline limit");
+    let shared = string.clone();
+
+    let th = thread::spawn(move || {
+        drop(shared);
+    });
+
+    let frozen = string.freeze();
+    assert_eq!(frozen, "a string longer than the inline limit");
+
+    th.join().unwrap();
+}
 
 #[test]
 fn drop_while_push() {

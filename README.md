@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/lean_string.svg)](https://crates.io/crates/lean_string)
 [![Documentation](https://docs.rs/lean_string/badge.svg)](https://docs.rs/lean_string)
 
-Compact, clone-on-write string.
+Compact owned strings with mutable and immutable variants.
 
 ## Properties
 
@@ -26,6 +26,14 @@ Compact, clone-on-write string.
 - High API compatibility for `String`.
 - Supports `no_std` environment.
 
+`LeanString` and `LeanStr` share the same two-word inline and static representations, but use
+different reference-counted heap layouts. Like `String` versus `str`, capacity belongs only to the
+mutable type: every `LeanString` heap allocation stores a capacity and is growable, while every
+`LeanStr` heap allocation is exact and stores only the reference count before the string bytes.
+Converting a unique heap allocation between the types uses `realloc`; converting shared heap
+storage allocates and copies. Use `LeanString::freeze` after building a string, or construct a
+`LeanStr` directly when the final contents are already available.
+
 ## Example
 
 ```rust
@@ -44,6 +52,11 @@ let mut cloned = large.clone();
 cloned.push('!');
 assert_eq!(cloned, "This is a not long but can't store inlined!");
 assert_eq!(large  + "!", cloned);
+
+// Immutable strings have exactly-sized heap storage and still clone in O(1).
+let frozen = LeanString::from("This string was assembled mutably").freeze();
+let shared = frozen.clone();
+assert_eq!(frozen, shared);
 ```
 
 ## Comparison
@@ -55,6 +68,7 @@ assert_eq!(large  + "!", cloned);
 | [`CompactString`](https://docs.rs/compact_str/latest/compact_str/struct.CompactString.html) | 24 bytes | 24 bytes | Yes            | Nich optimized for `Option<_>`                 |
 | [`EcoString`](https://docs.rs/ecow/latest/ecow/string/struct.EcoString.html)                | 16 bytes | 15 bytes | No             | Clone-on-Write, Nich optimized for `Option<_>` |
 | `LeanString` (This crate)                                                                   | 16 bytes | 16 bytes | Yes            | Clone-on-Write, Nich optimized for `Option<_>` |
+| `LeanStr` (This crate)                                                                      | 16 bytes | 16 bytes | Yes            | Immutable, exact heap allocation                |
 
 <details>
 <summary>Above table is for 64-bit architecture. Click here for 32-bit architecture.</summary>
@@ -66,6 +80,7 @@ assert_eq!(large  + "!", cloned);
 | `CompactString`           | 12 bytes | 12 bytes | Yes            | Nich optimized for `Option<_>`                 |
 | `EcoString`               | 8 bytes  | 7 bytes  | No             | Clone-on-Write, Nich optimized for `Option<_>` |
 | `LeanString` (This crate) | 8 bytes  | 8 bytes  | Yes            | Clone-on-Write, Nich optimized for `Option<_>` |
+| `LeanStr` (This crate)    | 8 bytes  | 8 bytes  | Yes            | Immutable, exact heap allocation                |
 
 </details>
 

@@ -1,7 +1,7 @@
 // from: https://github.com/ParkMyCar/compact_str/blob/193d13eaa5a92b3c39c2f7289dc44c95f37c80d1/compact_str/src/features/serde.rs
 #![cfg(feature = "serde")]
 
-use lean_string::LeanString;
+use lean_string::{LeanStr, LeanString};
 use proptest::property_test;
 use serde::{Deserialize, Serialize};
 
@@ -48,6 +48,15 @@ fn test_roundtrip() {
     // we should be able to deserailze from the opposite, serialized, source
     assert_eq!(std_de_compact, std);
     assert_eq!(compact_de_std, compact);
+}
+
+#[test]
+fn lean_str_roundtrip() {
+    let value = LeanStr::from("a frozen string longer than the inline limit");
+    let serialized = serde_json::to_string(&value).unwrap();
+    let deserialized: LeanStr = serde_json::from_str(&serialized).unwrap();
+
+    assert_eq!(deserialized, value);
 }
 
 #[property_test]
