@@ -12,9 +12,9 @@ customizations for use in [Ruff](https://github.com/astral-sh/ruff) and
 ```rust
 use char_str::{CharStr, format_char_str};
 
-let module = "module";
-let name = format_char_str!("package.{module}");
-assert_eq!(name, "package.module");
+let module = "mod";
+let name = format_char_str!("pkg.{module}");
+assert_eq!(name, "pkg.mod");
 assert!(name.len() <= CharStr::INLINE_CAPACITY);
 ```
 

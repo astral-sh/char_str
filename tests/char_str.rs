@@ -14,13 +14,13 @@ fn size() {
 #[test]
 fn format_macros() {
     let name = "world";
-    let inline = format_char!("hello, {name}!");
-    let frozen = format_char_str!("hello, {name}!");
+    let inline = format_char!("{name}!");
+    let frozen = format_char_str!("{name}!");
     let heap = format_char_str!("a string longer than the inline limit: {name}");
 
-    assert_eq!(inline, "hello, world!");
+    assert_eq!(inline, "world!");
     assert!(!inline.is_heap_allocated());
-    assert_eq!(frozen, "hello, world!");
+    assert_eq!(frozen, "world!");
     assert!(!frozen.is_heap_allocated());
     assert_eq!(heap, "a string longer than the inline limit: world");
     assert!(heap.is_heap_allocated());
