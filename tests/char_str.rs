@@ -66,6 +66,60 @@ fn comparisons_fall_back_to_content() {
 }
 
 #[test]
+fn inline_comparisons_ignore_mutable_history_and_freeze_canonicalizes() {
+    let inputs = ["a".repeat(INLINE_LIMIT), "é".repeat(INLINE_LIMIT / "é".len())];
+
+    for full in inputs {
+        for len in 0..=INLINE_LIMIT {
+            if !full.is_char_boundary(len) {
+                continue;
+            }
+            let text = &full[..len];
+            let expected = CharStr::from(text);
+
+            let mut truncated = CharString::from(full.as_str());
+            truncated.truncate(len);
+
+            let mut cleared = CharString::from(full.as_str());
+            cleared.clear();
+            cleared.push_str(text);
+
+            let mut retained = CharString::from(full.as_str());
+            let mut index = 0;
+            retained.retain(|ch| {
+                index += ch.len_utf8();
+                index <= len
+            });
+
+            // Mutable inline buffers can retain different, non-canonical tails. Cross-type and
+            // mutable comparisons must continue to use logical bytes.
+            assert_eq!(truncated, cleared);
+            assert_eq!(cleared, retained);
+            assert_eq!(expected, truncated);
+            assert_eq!(truncated, expected);
+            assert_eq!(expected, cleared);
+            assert_eq!(cleared, expected);
+            assert_eq!(expected, retained);
+            assert_eq!(retained, expected);
+
+            let truncated = truncated.freeze();
+            let cleared = cleared.freeze();
+            let retained = retained.freeze();
+
+            assert_eq!(expected, truncated);
+            assert_eq!(expected, cleared);
+            assert_eq!(expected, retained);
+
+            if let Some(shorter_len) = (0..len).rev().find(|index| text.is_char_boundary(*index)) {
+                let shorter = CharStr::from(&text[..shorter_len]);
+                assert_ne!(expected, shorter);
+                assert_ne!(truncated, shorter);
+            }
+        }
+    }
+}
+
+#[test]
 fn concat_accepts_as_ref_str() {
     let slices = [String::from("prefix"), String::from("suffix")];
 

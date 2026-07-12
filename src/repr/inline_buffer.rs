@@ -97,4 +97,49 @@ impl InlineBuffer {
             self.0[MAX_INLINE_SIZE - 1] = len as u8 | LastByte::MASK_1100_0000;
         }
     }
+
+    /// Clears the unused bytes while preserving the inline length marker.
+    pub(super) fn make_canonical(&mut self, len: usize) {
+        debug_assert!(len <= MAX_INLINE_SIZE);
+
+        // Clear in machine-word-sized chunks so the bounded operation stays inline instead of
+        // becoming an out-of-line memset for at most `MAX_INLINE_SIZE - 1` bytes.
+        let word_size = size_of::<usize>();
+        let (head, tail) = self.0.split_at_mut(word_size);
+        if len < word_size {
+            let mask = (1usize << (len * 8)).wrapping_sub(1);
+            let word = usize::from_ne_bytes(head.try_into().unwrap());
+            head.copy_from_slice(&(word & mask.to_le()).to_ne_bytes());
+            tail[..word_size - 1].fill(0);
+        } else if len < MAX_INLINE_SIZE - 1 {
+            let mask = (1usize << ((len - word_size) * 8)).wrapping_sub(1)
+                | (usize::MAX << ((word_size - 1) * 8));
+            let word = usize::from_ne_bytes(tail.try_into().unwrap());
+            tail.copy_from_slice(&(word & mask.to_le()).to_ne_bytes());
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonicalize_clears_unused_bytes_and_preserves_marker() {
+        let full = "a".repeat(MAX_INLINE_SIZE);
+
+        for len in 0..=MAX_INLINE_SIZE {
+            // SAFETY: `full` has exactly `MAX_INLINE_SIZE` bytes.
+            let mut buffer = unsafe { InlineBuffer::new(&full) };
+            // SAFETY: ASCII prefixes are valid UTF-8 and `len <= MAX_INLINE_SIZE`.
+            unsafe { buffer.set_len(len) };
+            buffer.make_canonical(len);
+
+            assert_eq!(&buffer.0[..len], &full.as_bytes()[..len]);
+            if len < MAX_INLINE_SIZE {
+                assert!(buffer.0[len..MAX_INLINE_SIZE - 1].iter().all(|byte| *byte == 0));
+                assert_eq!(buffer.0[MAX_INLINE_SIZE - 1], len as u8 | LastByte::MASK_1100_0000);
+            }
+        }
+    }
 }

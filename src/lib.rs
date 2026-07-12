@@ -88,7 +88,8 @@ impl CharString {
 
     /// Tries to convert this value into an immutable, exactly allocated [`CharStr`].
     ///
-    /// Inline and static storage are transferred without reallocating. Unique growable heap
+    /// Inline storage is canonicalized by clearing its unused bytes and transferred without
+    /// reallocating. Static storage is transferred without reallocating. Unique growable heap
     /// storage is converted with `realloc`, while shared heap storage is copied.
     ///
     /// # Errors

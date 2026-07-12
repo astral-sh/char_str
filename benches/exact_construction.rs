@@ -2,7 +2,7 @@ use core::hint::black_box;
 use std::time::Duration;
 
 use char_str::{CharStr, CharString};
-use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
 struct Case {
     name: &'static str,
@@ -80,12 +80,55 @@ fn join(c: &mut Criterion) {
     group.finish();
 }
 
+fn inline_freeze(c: &mut Criterion) {
+    let mut group = c.benchmark_group("exact_construction/inline_freeze");
+    let full = "a".repeat(size_of::<CharStr>());
+
+    for len in 0..=size_of::<CharStr>() {
+        group.throughput(Throughput::Bytes(len as u64));
+        let text = &full[..len];
+
+        group.bench_function(BenchmarkId::new("fresh", len), |b| {
+            b.iter_batched(
+                || CharString::from(text),
+                |string| black_box(string.freeze()),
+                BatchSize::SmallInput,
+            );
+        });
+        group.bench_function(BenchmarkId::new("truncated", len), |b| {
+            b.iter_batched(
+                || {
+                    let mut string = CharString::from(full.as_str());
+                    string.truncate(len);
+                    string
+                },
+                |string| black_box(string.freeze()),
+                BatchSize::SmallInput,
+            );
+        });
+        group.bench_function(BenchmarkId::new("cleared", len), |b| {
+            b.iter_batched(
+                || {
+                    let mut string = CharString::from(full.as_str());
+                    string.clear();
+                    string.push_str(text);
+                    string
+                },
+                |string| black_box(string.freeze()),
+                BatchSize::SmallInput,
+            );
+        });
+    }
+
+    group.finish();
+}
+
 criterion_group! {
     name = benches;
     config = Criterion::default()
         .warm_up_time(Duration::from_millis(500))
         .measurement_time(Duration::from_secs(2))
         .sample_size(50);
-    targets = concat, join
+    targets = concat, join, inline_freeze
 }
 criterion_main!(benches);

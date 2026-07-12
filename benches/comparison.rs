@@ -93,6 +93,57 @@ fn equality(c: &mut Criterion) {
     group.finish();
 }
 
+fn inline_equality(c: &mut Criterion) {
+    let mut group = c.benchmark_group("comparison/inline_equality");
+
+    for len in 0..=size_of::<CharStr>() {
+        group.throughput(Throughput::Bytes(len as u64));
+
+        let text = "a".repeat(len);
+        let exact = CharStr::from(text.as_str());
+        let exact_equal = CharStr::from(text.as_str());
+        let growable = CharString::from(text.as_str());
+        let growable_equal = CharString::from(text.as_str());
+
+        bench_eq(&mut group, "char_str/distinct_equal", len, &exact, &exact_equal);
+        bench_eq(&mut group, "char_string/distinct_equal", len, &growable, &growable_equal);
+
+        if len > 0 {
+            let first_mismatch = text_with_byte(len, 0, b'b');
+            let last_mismatch = text_with_byte(len, len - 1, b'b');
+            let exact_first_mismatch = CharStr::from(first_mismatch.as_str());
+            let exact_last_mismatch = CharStr::from(last_mismatch.as_str());
+            let growable_first_mismatch = CharString::from(first_mismatch.as_str());
+            let growable_last_mismatch = CharString::from(last_mismatch.as_str());
+
+            bench_eq(
+                &mut group,
+                "char_str/first_byte_mismatch",
+                len,
+                &exact,
+                &exact_first_mismatch,
+            );
+            bench_eq(&mut group, "char_str/last_byte_mismatch", len, &exact, &exact_last_mismatch);
+            bench_eq(
+                &mut group,
+                "char_string/first_byte_mismatch",
+                len,
+                &growable,
+                &growable_first_mismatch,
+            );
+            bench_eq(
+                &mut group,
+                "char_string/last_byte_mismatch",
+                len,
+                &growable,
+                &growable_last_mismatch,
+            );
+        }
+    }
+
+    group.finish();
+}
+
 fn ordering(c: &mut Criterion) {
     let mut group = c.benchmark_group("comparison/ordering");
 
@@ -159,6 +210,6 @@ criterion_group! {
         .warm_up_time(Duration::from_millis(500))
         .measurement_time(Duration::from_secs(2))
         .sample_size(50);
-    targets = equality, ordering
+    targets = equality, inline_equality, ordering
 }
 criterion_main!(benches);

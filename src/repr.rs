@@ -130,12 +130,18 @@ impl Repr {
         }
     }
 
-    /// Converts growable heap storage to exact heap storage.
+    /// Converts growable storage to exact storage.
     ///
-    /// Inline and static storage are left unchanged. A unique heap allocation is converted with
-    /// `realloc`; shared heap storage is copied into a new exact allocation.
+    /// Inline storage is canonicalized by clearing its unused bytes. Static storage is left
+    /// unchanged. A unique heap allocation is converted with `realloc`; shared heap storage is
+    /// copied into a new exact allocation.
     pub(crate) fn make_exact(&mut self) -> Result<(), ReserveError> {
         if !self.is_heap_buffer() {
+            if !self.is_static_buffer() {
+                let len = self.len();
+                // SAFETY: The representation is neither heap nor static, so it is inline.
+                unsafe { self.as_inline_buffer_mut() }.make_canonical(len);
+            }
             return Ok(());
         }
 
@@ -274,6 +280,24 @@ impl Repr {
 
         // Shared growable and static buffers can have per-handle logical lengths.
         this.len() == other.len() && (ptr::eq(this.as_ptr(), other.as_ptr()) || this == other)
+    }
+
+    #[inline]
+    pub(crate) fn exact_content_eq(&self, other: &Self) -> bool {
+        if self.last_byte() < LastByte::ExactHeapMarker as u8
+            && other.last_byte() < LastByte::ExactHeapMarker as u8
+        {
+            // Exact inline representations are canonical: all unused bytes are zero and the
+            // final byte is either the length marker or the last byte of a full inline string.
+            // SAFETY: `Repr` is fully initialized, has the size of `[usize; 2]`, and is aligned
+            // as `usize`. Reading it as integer words does not impose pointer validity or
+            // provenance requirements on inline data.
+            let this = unsafe { ptr::read(self as *const Self as *const [usize; 2]) };
+            let other = unsafe { ptr::read(other as *const Self as *const [usize; 2]) };
+            this == other
+        } else {
+            self.content_eq(other)
+        }
     }
 
     #[inline]

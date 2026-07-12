@@ -266,7 +266,7 @@ impl Eq for CharStr {}
 impl PartialEq for CharStr {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.0.content_eq(&other.0)
+        self.0.exact_content_eq(&other.0)
     }
 }
 

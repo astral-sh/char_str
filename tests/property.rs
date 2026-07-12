@@ -1,4 +1,4 @@
-use char_str::{CharString, ToCharString};
+use char_str::{CharStr, CharString, ToCharString};
 use proptest::{prelude::*, property_test};
 
 #[property_test]
@@ -144,4 +144,32 @@ fn char_to_char_string(c: char) {
 #[cfg_attr(miri, ignore)]
 fn string_to_char_string(s: String) {
     prop_assert_eq!(s.to_char_string(), s);
+}
+
+#[property_test]
+#[cfg_attr(miri, ignore)]
+fn freeze_after_inline_mutations_compares_by_content(
+    bytes: [u8; size_of::<CharStr>()],
+    cutoff: u8,
+) {
+    let full: String = bytes.into_iter().map(|byte| char::from(b'a' + byte % 26)).collect();
+    let len = usize::from(cutoff) % (size_of::<CharStr>() + 1);
+    let text = &full[..len];
+    let expected = CharStr::from(text);
+
+    let mut truncated = CharString::from(full.as_str());
+    truncated.truncate(len);
+
+    let mut cleared = CharString::from(full.as_str());
+    cleared.clear();
+    cleared.push_str(text);
+
+    prop_assert_eq!(&truncated, &cleared);
+    prop_assert!(expected == truncated);
+    prop_assert!(truncated == expected);
+
+    let truncated = truncated.freeze();
+    let cleared = cleared.freeze();
+    prop_assert_eq!(&expected, &truncated);
+    prop_assert_eq!(&expected, &cleared);
 }
