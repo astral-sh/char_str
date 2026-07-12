@@ -1117,7 +1117,7 @@ impl Eq for CharString {}
 impl PartialEq for CharString {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.as_str().eq(other.as_str())
+        self.0.content_eq(&other.0)
     }
 }
 
@@ -1180,7 +1180,7 @@ impl PartialEq<CharString> for Cow<'_, str> {
 impl Ord for CharString {
     #[inline]
     fn cmp(&self, other: &Self) -> cmp::Ordering {
-        self.as_str().cmp(other.as_str())
+        self.0.content_cmp(&other.0)
     }
 }
 
