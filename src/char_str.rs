@@ -26,6 +26,9 @@ const _: () = {
 };
 
 impl CharStr {
+    /// Maximum number of UTF-8 bytes that can be stored inline.
+    pub const INLINE_CAPACITY: usize = crate::repr::MAX_INLINE_SIZE;
+
     /// Creates an empty `CharStr`.
     #[inline]
     pub const fn new() -> Self {

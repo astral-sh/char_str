@@ -22,7 +22,7 @@ use last_byte::LastByte;
 mod num_to_repr;
 use num_to_repr::NumToRepr;
 
-const MAX_INLINE_SIZE: usize = 2 * size_of::<usize>();
+pub(crate) const MAX_INLINE_SIZE: usize = 2 * size_of::<usize>();
 
 #[repr(C)]
 #[cfg(target_pointer_width = "64")]

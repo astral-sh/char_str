@@ -35,6 +35,54 @@ pub use traits::ToCharString;
 
 mod features;
 
+/// Formats text into a [`CharString`].
+///
+/// This is equivalent to [`format!`](alloc::format), but writes directly into a compact,
+/// growable string.
+///
+/// # Panics
+///
+/// Panics if a formatting trait implementation returns an error.
+///
+/// # Examples
+///
+/// ```
+/// # use char_str::format_char;
+/// let name = "world";
+/// assert_eq!(format_char!("hello, {name}!"), "hello, world!");
+/// ```
+#[macro_export]
+macro_rules! format_char {
+    ($($arg:tt)*) => {{
+        let mut string = $crate::CharString::new();
+        ::core::fmt::Write::write_fmt(&mut string, ::core::format_args!($($arg)*))
+            .expect("a formatting trait implementation returned an error");
+        string
+    }};
+}
+
+/// Formats text into an immutable [`CharStr`].
+///
+/// # Panics
+///
+/// Panics if a formatting trait implementation returns an error or freezing the formatted string
+/// fails.
+///
+/// # Examples
+///
+/// ```
+/// # use char_str::format_char_str;
+/// let package = "package";
+/// let module = "module";
+/// assert_eq!(format_char_str!("{package}.{module}"), "package.module");
+/// ```
+#[macro_export]
+macro_rules! format_char_str {
+    ($($arg:tt)*) => {
+        $crate::format_char!($($arg)*).freeze()
+    };
+}
+
 /// Compact, clone-on-write, UTF-8 encoded, growable string type.
 ///
 /// Heap allocations store a capacity and are always growable. Use [`CharString::freeze`] to
