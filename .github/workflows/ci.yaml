@@ -20,7 +20,7 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   CARGO_TERM_COLOR: always
-  PROPTEST_CASES: 10000
+  PROPTEST_CASES: ${{ github.ref == 'refs/heads/main' && '10000' || '256' }}
   RUSTFLAGS: "-D warnings"
   RUSTUP_MAX_RETRIES: 10
   MIRIFLAGS: "-Zmiri-strict-provenance"
