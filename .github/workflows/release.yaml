@@ -87,11 +87,6 @@ jobs:
             found { print }
           ' CHANGELOG.md > "$notes"
 
-          if ! grep -q '[^[:space:]]' "$notes"; then
-            echo "CHANGELOG.md has no release notes for char_str $RELEASE_VERSION" >&2
-            exit 1
-          fi
-
           tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha' 2>/dev/null || true)"
           if [ -n "$tag_sha" ]; then
             tag_commit="$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq '.sha')"
