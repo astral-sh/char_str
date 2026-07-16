@@ -46,6 +46,26 @@ impl Repr {
     }
 
     #[inline]
+    pub(crate) fn from_str(text: &str) -> Result<Self, ReserveError> {
+        if text.len() <= MAX_INLINE_SIZE {
+            // SAFETY: `text.len()` is less than or equal to `MAX_INLINE_SIZE`
+            Ok(Repr::from_inline(unsafe { InlineBuffer::new(text) }))
+        } else {
+            HeapBuffer::new(text).map(Repr::from_heap)
+        }
+    }
+
+    #[inline]
+    pub(crate) fn from_exact_str(text: &str) -> Result<Self, ReserveError> {
+        if text.len() <= MAX_INLINE_SIZE {
+            // SAFETY: `text.len()` is less than or equal to `MAX_INLINE_SIZE`.
+            Ok(Repr::from_inline(unsafe { InlineBuffer::new(text) }))
+        } else {
+            HeapBuffer::new_exact(text).map(Repr::from_heap)
+        }
+    }
+
+    #[inline]
     pub(crate) const fn from_inline_str(text: &str) -> Option<Self> {
         if text.len() <= MAX_INLINE_SIZE {
             // SAFETY: `text.len()` is less than or equal to `MAX_INLINE_SIZE`.
@@ -58,24 +78,6 @@ impl Repr {
     #[inline]
     pub(crate) fn from_exact_heap_str(text: &str) -> Result<Self, ReserveError> {
         HeapBuffer::new_exact(text).map(Repr::from_heap)
-    }
-
-    #[inline]
-    pub(crate) fn from_str(text: &str) -> Result<Self, ReserveError> {
-        if let Some(inline) = Repr::from_inline_str(text) {
-            Ok(inline)
-        } else {
-            HeapBuffer::new(text).map(Repr::from_heap)
-        }
-    }
-
-    #[inline]
-    pub(crate) fn from_exact_str(text: &str) -> Result<Self, ReserveError> {
-        if let Some(inline) = Repr::from_inline_str(text) {
-            Ok(inline)
-        } else {
-            Repr::from_exact_heap_str(text)
-        }
     }
 
     #[inline]
