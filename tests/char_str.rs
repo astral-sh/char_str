@@ -53,6 +53,25 @@ fn storage_kinds() {
 }
 
 #[test]
+fn explicit_storage_constructors() {
+    let inline_text = "x".repeat(INLINE_LIMIT);
+    let long_text = "x".repeat(INLINE_LIMIT + 1);
+
+    let inline = CharStr::new_inline(&inline_text).unwrap();
+    assert_eq!(inline, inline_text);
+    assert!(!inline.is_heap_allocated());
+    assert!(CharStr::new_inline(&long_text).is_none());
+
+    let heap = CharStr::new_heap("short");
+    assert_eq!(heap, "short");
+    assert!(heap.is_heap_allocated());
+
+    let fallible_heap = CharStr::try_new_heap("").unwrap();
+    assert!(fallible_heap.is_empty());
+    assert!(fallible_heap.is_heap_allocated());
+}
+
+#[test]
 fn clone_shares_heap_storage() {
     let one = CharStr::from("a string longer than the inline limit");
     let two = one.clone();

@@ -35,6 +35,34 @@ impl CharStr {
         Self(Repr::new())
     }
 
+    /// Creates an inline `CharStr`, returning `None` if `text` does not fit inline.
+    #[inline]
+    pub const fn new_inline(text: &str) -> Option<Self> {
+        match Repr::from_inline_str(text) {
+            Some(repr) => Some(Self(repr)),
+            None => None,
+        }
+    }
+
+    /// Creates an exactly-sized, heap-allocated `CharStr`.
+    ///
+    /// This always allocates, even when `text` fits inline. To handle allocation failure, use
+    /// [`CharStr::try_new_heap`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if `text` is too long or the exact buffer cannot be allocated.
+    #[inline]
+    pub fn new_heap(text: &str) -> Self {
+        Self::try_new_heap(text).unwrap_with_msg()
+    }
+
+    /// Fallible version of [`CharStr::new_heap`].
+    #[inline]
+    pub fn try_new_heap(text: &str) -> Result<Self, ReserveError> {
+        Repr::from_exact_heap_str(text).map(Self)
+    }
+
     /// Creates a `CharStr` backed directly by a static string when it does not fit inline.
     ///
     /// # Panics
