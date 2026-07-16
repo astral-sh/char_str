@@ -3,10 +3,11 @@
 # requires-python = ">=3.12"
 # dependencies = []
 # ///
-"""Update the crate version and lockfile for a release."""
+"""Update the crate version, changelog, and lockfile for a release."""
 
 from __future__ import annotations
 
+import datetime as dt
 import re
 import subprocess
 import sys
@@ -14,6 +15,12 @@ from pathlib import Path
 
 PACKAGE_NAME = "char_str"
 ROOT = Path(__file__).resolve().parent.parent
+CHANGELOG_COMPARE_URL = "https://github.com/astral-sh/char_str/compare/"
+UNRELEASED_HEADING = "## [Unreleased]"
+UNRELEASED_LINK = re.compile(
+    rf"(?m)^\[Unreleased\]: {re.escape(CHANGELOG_COMPARE_URL)}"
+    r"(?P<previous_tag>\S+)\.\.\.HEAD$"
+)
 
 
 def run(*args: str, capture_output: bool = False) -> subprocess.CompletedProcess[str]:
@@ -44,8 +51,55 @@ def update_manifest(version: str) -> None:
     if match.group(1) == version:
         raise SystemExit(f"Cargo.toml is already at version {version}")
 
-    package = package[: match.start()] + f'version = "{version}"' + package[match.end() :]
+    package = (
+        package[: match.start()] + f'version = "{version}"' + package[match.end() :]
+    )
     manifest.write_text(contents[:package_start] + package + contents[package_end:])
+
+
+def rewrite_changelog(contents: str, version: str, release_date: dt.date) -> str:
+    """Move the unreleased changes into a dated release section."""
+    if contents.count(UNRELEASED_HEADING) != 1:
+        raise SystemExit(
+            f"CHANGELOG.md must contain exactly one {UNRELEASED_HEADING!r} heading"
+        )
+
+    if f"## [{version}]" in contents or f"[{version}]:" in contents:
+        raise SystemExit(f"CHANGELOG.md already contains release {version}")
+
+    link = UNRELEASED_LINK.search(contents)
+    if link is None:
+        raise SystemExit("CHANGELOG.md has no valid [Unreleased] comparison link")
+
+    release_heading = f"## [{version}] - {release_date.isoformat()}"
+    contents = contents.replace(
+        UNRELEASED_HEADING,
+        f"{UNRELEASED_HEADING}\n\n{release_heading}",
+        1,
+    )
+
+    previous_tag = link.group("previous_tag")
+    release_tag = f"v{version}"
+    return UNRELEASED_LINK.sub(
+        (
+            f"[Unreleased]: {CHANGELOG_COMPARE_URL}{release_tag}...HEAD\n"
+            f"[{version}]: "
+            f"{CHANGELOG_COMPARE_URL}{previous_tag}...{release_tag}"
+        ),
+        contents,
+        count=1,
+    )
+
+
+def update_changelog(version: str) -> None:
+    changelog = ROOT / "CHANGELOG.md"
+    changelog.write_text(
+        rewrite_changelog(
+            changelog.read_text(),
+            version,
+            dt.datetime.now(dt.UTC).date(),
+        )
+    )
 
 
 def main() -> None:
@@ -54,6 +108,7 @@ def main() -> None:
 
     version = sys.argv[1]
     update_manifest(version)
+    update_changelog(version)
 
     # Let Cargo validate the version and refresh only the root package entry.
     run("cargo", "update", "-p", PACKAGE_NAME)
@@ -67,10 +122,14 @@ def main() -> None:
         capture_output=True,
     )
     run("git", "diff", "--check")
-    changed = set(run("git", "diff", "--name-only", capture_output=True).stdout.splitlines())
-    expected = {"Cargo.toml", "Cargo.lock"}
+    changed = set(
+        run("git", "diff", "--name-only", capture_output=True).stdout.splitlines()
+    )
+    expected = {"Cargo.toml", "Cargo.lock", "CHANGELOG.md"}
     if changed != expected:
-        raise SystemExit(f"release preparation changed {sorted(changed)}, expected {sorted(expected)}")
+        raise SystemExit(
+            f"release preparation changed {sorted(changed)}, expected {sorted(expected)}"
+        )
 
 
 if __name__ == "__main__":
