@@ -46,6 +46,13 @@ static ALLOCATOR: FailNextAllocation = FailNextAllocation;
 fn fallible_heap_operations_report_allocation_failure() {
     const TEXT: &str = "a string longer than the inline limit";
 
+    // Explicit heap construction allocates even when the text would fit inline.
+    FAIL_NEXT_ALLOCATION.store(true, Ordering::SeqCst);
+    let result = CharStr::try_new_heap("short");
+    FAIL_NEXT_ALLOCATION.store(false, Ordering::SeqCst);
+
+    assert_eq!(result, Err(ReserveError));
+
     // A unique growable allocation is converted to exact storage with `realloc`.
     let mut string = CharString::with_capacity(128);
     string.push_str(TEXT);
