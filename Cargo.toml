@@ -9,6 +9,7 @@ readme = "README.md"
 license = "MIT"
 keywords = ["string", "sso", "cow"]
 categories = ["data-structures", "no-std"]
+exclude = ["/scripts/"]
 
 [features]
 default = ["std"]
