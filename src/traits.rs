@@ -24,6 +24,12 @@ pub trait ToCharString {
     fn try_to_char_string(&self) -> Result<CharString, ToCharStringError>;
 }
 
+impl ToCharString for str {
+    fn try_to_char_string(&self) -> Result<CharString, ToCharStringError> {
+        Ok(CharString(Repr::from_str(self)?))
+    }
+}
+
 // NOTE: the restriction of `castaway` is `T` must be Sized.
 impl<T: fmt::Display> ToCharString for T {
     fn try_to_char_string(&self) -> Result<CharString, ToCharStringError> {

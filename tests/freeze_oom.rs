@@ -4,7 +4,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use char_str::{CharStr, CharString, ReserveError};
+use char_str::{CharStr, CharString, ReserveError, ToCharString, ToCharStringError};
 
 struct FailNextAllocation;
 
@@ -45,6 +45,11 @@ static ALLOCATOR: FailNextAllocation = FailNextAllocation;
 #[test]
 fn fallible_heap_operations_report_allocation_failure() {
     const TEXT: &str = "a string longer than the inline limit";
+
+    FAIL_NEXT_ALLOCATION.store(true, Ordering::SeqCst);
+    let result = <str as ToCharString>::try_to_char_string(TEXT);
+    FAIL_NEXT_ALLOCATION.store(false, Ordering::SeqCst);
+    assert!(matches!(result, Err(ToCharStringError::Reserve(ReserveError))));
 
     // Explicit heap construction allocates even when the text would fit inline.
     FAIL_NEXT_ALLOCATION.store(true, Ordering::SeqCst);
