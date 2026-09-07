@@ -1,7 +1,7 @@
 [package]
 name = "char_str"
 description = "Compact owned string types forked from lean_string for Ruff and ty."
-version = "0.0.2"
+version = "0.0.3"
 edition = "2024"
 authors = ["Charlie Marsh <charlie.r.marsh@gmail.com>", "ryota2357"]
 repository = "https://github.com/astral-sh/char_str"

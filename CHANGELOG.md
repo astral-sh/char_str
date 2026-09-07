@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-09-07
+
+### Changed
+
+- Updated the optional `get-size2` dependency to 0.11.0. ([#31](https://github.com/astral-sh/char_str/pull/31))
+- Excluded the release script from the published crate. ([#30](https://github.com/astral-sh/char_str/pull/30))
+
 ## [0.0.2] - 2026-07-16
 
 ### Added
@@ -20,6 +27,7 @@
 - Renamed `LeanString` to `CharString` and `LeanStr` to `CharStr`.
 - Added optional `salsa` and `get-size` integrations for ty.
 
-[Unreleased]: https://github.com/astral-sh/char_str/compare/v0.0.2...HEAD
+[Unreleased]: https://github.com/astral-sh/char_str/compare/v0.0.3...HEAD
+[0.0.3]: https://github.com/astral-sh/char_str/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/astral-sh/char_str/compare/0.0.1...v0.0.2
 [0.0.1]: https://github.com/astral-sh/char_str/releases/tag/0.0.1
