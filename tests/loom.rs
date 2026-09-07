@@ -152,6 +152,39 @@ macro_rules! loom_test {
 }
 
 #[test]
+fn concurrent_last_exact_owners_drop() {
+    loom::model(|| {
+        let text = "a".repeat(EXACT_TEXT_LEN);
+        start_tracking();
+        {
+            let original = CharStr::from(text.as_str());
+            let shared = original.clone();
+            let thread = thread::spawn(move || drop(shared));
+            drop(original);
+            thread.join().unwrap();
+        }
+        stop_tracking(&[EXACT_ALLOCATION_SIZE]);
+    });
+}
+
+#[test]
+fn concurrent_last_growable_owners_drop() {
+    loom::model(|| {
+        let text = "a".repeat(COW_TEXT_LEN);
+        start_tracking();
+        {
+            let mut original = CharString::with_capacity(COW_CAPACITY);
+            original.push_str(&text);
+            let shared = original.clone();
+            let thread = thread::spawn(move || drop(shared));
+            drop(original);
+            thread.join().unwrap();
+        }
+        stop_tracking(&[COW_ALLOCATION_SIZE]);
+    });
+}
+
+#[test]
 fn concurrent_exact_clone_and_drop() {
     loom::model(|| {
         let text = "a".repeat(EXACT_TEXT_LEN);

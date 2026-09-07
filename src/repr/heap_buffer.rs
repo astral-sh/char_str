@@ -437,9 +437,20 @@ impl HeapBuffer {
     ///   overwriting `self` or ensuring no further use occurs.
     #[inline]
     pub(super) unsafe fn release(&mut self) {
+        // With no weak references, a count of one means no other owner can clone or access the
+        // allocation. The acquire load synchronizes with prior owners' release decrements, so
+        // uniquely owned buffers can be freed without an atomic read-modify-write.
+        if self.reference_count().load(Acquire) == 1 {
+            // SAFETY: This is the only counted reference, and the caller never accesses it again.
+            unsafe { self.dealloc_last_reference() };
+            return;
+        }
+
         // Same as `Arc::drop`: `fetch_sub(1, Release)` ensures all prior accesses from other
         // threads are visible before we might deallocate.
         if self.reference_count().fetch_sub(1, Release) == 1 {
+            // The acquire fence synchronizes with all prior owners' release decrements.
+            fence(Acquire);
             // SAFETY: The old value of `fetch_sub` was `1`, so now it is `0` and no other
             // references exist.
             unsafe { self.dealloc_last_reference() };
@@ -449,10 +460,8 @@ impl HeapBuffer {
     #[cold]
     #[inline(never)]
     unsafe fn dealloc_last_reference(&mut self) {
-        // The `Acquire` fence ensures we see all writes before freeing the memory.
-        fence(Acquire);
-
-        // SAFETY: The caller guarantees that no other references to the allocation exist.
+        // SAFETY: The caller guarantees that no other references to the allocation exist and
+        // performs an acquire operation before deallocation.
         unsafe { self.dealloc() };
     }
 
