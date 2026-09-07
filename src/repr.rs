@@ -24,6 +24,42 @@ use num_to_repr::NumToRepr;
 
 pub(crate) const MAX_INLINE_SIZE: usize = 2 * size_of::<usize>();
 
+/// Compares short strings with fixed-size loads, including strings with unused inline tail bytes.
+#[inline]
+fn short_content_eq(this: &[u8], other: &[u8]) -> bool {
+    debug_assert_eq!(this.len(), other.len());
+    debug_assert!(this.len() <= MAX_INLINE_SIZE);
+
+    let len = this.len();
+    let this = this.as_ptr();
+    let other = other.as_ptr();
+
+    // For N <= len <= 2 * N, loads from both ends cover every byte without reading past either
+    // string. This also ignores any stale bytes left after truncating an inline string. Unaligned
+    // loads accept arbitrary borrowed string slices, and equality is independent of endianness.
+    // SAFETY: Every load is bounded by `len`, and both slices have the same length.
+    unsafe {
+        if len >= size_of::<usize>() {
+            const N: usize = size_of::<usize>();
+            ptr::read_unaligned(this.cast::<usize>()) == ptr::read_unaligned(other.cast::<usize>())
+                && ptr::read_unaligned(this.add(len - N).cast::<usize>())
+                    == ptr::read_unaligned(other.add(len - N).cast::<usize>())
+        } else if len >= 4 {
+            ptr::read_unaligned(this.cast::<u32>()) == ptr::read_unaligned(other.cast::<u32>())
+                && ptr::read_unaligned(this.add(len - 4).cast::<u32>())
+                    == ptr::read_unaligned(other.add(len - 4).cast::<u32>())
+        } else if len >= 2 {
+            ptr::read_unaligned(this.cast::<u16>()) == ptr::read_unaligned(other.cast::<u16>())
+                && ptr::read_unaligned(this.add(len - 2).cast::<u16>())
+                    == ptr::read_unaligned(other.add(len - 2).cast::<u16>())
+        } else if len == 1 {
+            *this == *other
+        } else {
+            true
+        }
+    }
+}
+
 #[repr(C)]
 #[cfg(target_pointer_width = "64")]
 pub(crate) struct Repr(*const (), [u8; 7], LastByte);
@@ -294,11 +330,23 @@ impl Repr {
 
     #[inline]
     pub(crate) fn content_eq(&self, other: &Self) -> bool {
+        self.content_eq_str(other.as_str())
+    }
+
+    #[inline]
+    pub(crate) fn content_eq_str(&self, other: &str) -> bool {
         let this = self.as_bytes();
         let other = other.as_bytes();
 
         // Shared growable and static buffers can have per-handle logical lengths.
-        this.len() == other.len() && (ptr::eq(this.as_ptr(), other.as_ptr()) || this == other)
+        if this.len() != other.len() {
+            return false;
+        }
+        if ptr::eq(this.as_ptr(), other.as_ptr()) {
+            return true;
+        }
+
+        if this.len() <= MAX_INLINE_SIZE { short_content_eq(this, other) } else { this == other }
     }
 
     #[inline]

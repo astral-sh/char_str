@@ -1205,56 +1205,56 @@ impl PartialEq for CharString {
 impl PartialEq<str> for CharString {
     #[inline]
     fn eq(&self, other: &str) -> bool {
-        self.as_str().eq(other)
+        self.0.content_eq_str(other)
     }
 }
 
 impl PartialEq<CharString> for str {
     #[inline]
     fn eq(&self, other: &CharString) -> bool {
-        self.eq(other.as_str())
+        other.0.content_eq_str(self)
     }
 }
 
 impl PartialEq<&str> for CharString {
     #[inline]
     fn eq(&self, other: &&str) -> bool {
-        self.as_str().eq(*other)
+        self.0.content_eq_str(other)
     }
 }
 
 impl PartialEq<CharString> for &str {
     #[inline]
     fn eq(&self, other: &CharString) -> bool {
-        (*self).eq(other.as_str())
+        other.0.content_eq_str(self)
     }
 }
 
 impl PartialEq<String> for CharString {
     #[inline]
     fn eq(&self, other: &String) -> bool {
-        self.as_str().eq(other.as_str())
+        self.0.content_eq_str(other.as_str())
     }
 }
 
 impl PartialEq<CharString> for String {
     #[inline]
     fn eq(&self, other: &CharString) -> bool {
-        self.as_str().eq(other.as_str())
+        other.0.content_eq_str(self.as_str())
     }
 }
 
 impl PartialEq<Cow<'_, str>> for CharString {
     #[inline]
     fn eq(&self, other: &Cow<'_, str>) -> bool {
-        self.as_str().eq(other.as_ref())
+        self.0.content_eq_str(other.as_ref())
     }
 }
 
 impl PartialEq<CharString> for Cow<'_, str> {
     #[inline]
     fn eq(&self, other: &CharString) -> bool {
-        self.as_ref().eq(other.as_str())
+        other.0.content_eq_str(self.as_ref())
     }
 }
 

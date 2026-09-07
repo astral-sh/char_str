@@ -15,16 +15,46 @@ fn text_with_byte(len: usize, index: usize, byte: u8) -> String {
     String::from_utf8(text).unwrap()
 }
 
-fn bench_eq<T: PartialEq>(
+fn bench_eq<T: PartialEq<U>, U: ?Sized>(
     group: &mut BenchmarkGroup<'_, WallTime>,
     case: &str,
     len: usize,
     left: &T,
-    right: &T,
+    right: &U,
 ) {
     group.bench_function(BenchmarkId::new(case, len), |b| {
         b.iter(|| black_box(left).eq(black_box(right)));
     });
+}
+
+fn short_equality(c: &mut Criterion) {
+    let mut group = c.benchmark_group("comparison/short_equality");
+
+    for len in [0, 1, 2, 3, 4, 7, 8, 9, 15, 16, 17] {
+        let text = "a".repeat(len);
+        let exact = CharStr::from(text.as_str());
+        let other = CharStr::from(text.as_str());
+        let growable = CharString::from(text.as_str());
+
+        bench_eq(&mut group, "char_str/equal", len, &exact, &other);
+        bench_eq(&mut group, "char_str/borrowed_equal", len, &exact, text.as_str());
+        bench_eq(&mut group, "char_string/borrowed_equal", len, &growable, text.as_str());
+
+        if len > 0 {
+            let different = text_with_byte(len, len - 1, b'b');
+            let other = CharStr::from(different.as_str());
+            bench_eq(&mut group, "char_str/last_byte_mismatch", len, &exact, &other);
+            bench_eq(
+                &mut group,
+                "char_str/borrowed_last_byte_mismatch",
+                len,
+                &exact,
+                different.as_str(),
+            );
+        }
+    }
+
+    group.finish();
 }
 
 fn bench_cmp<T: Ord>(
@@ -159,6 +189,6 @@ criterion_group! {
         .warm_up_time(Duration::from_millis(500))
         .measurement_time(Duration::from_secs(2))
         .sample_size(50);
-    targets = equality, ordering
+    targets = equality, short_equality, ordering
 }
 criterion_main!(benches);

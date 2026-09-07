@@ -337,42 +337,42 @@ impl PartialEq for CharStr {
 impl PartialEq<str> for CharStr {
     #[inline]
     fn eq(&self, other: &str) -> bool {
-        self.as_str() == other
+        self.0.content_eq_str(other)
     }
 }
 
 impl PartialEq<CharStr> for str {
     #[inline]
     fn eq(&self, other: &CharStr) -> bool {
-        self == other.as_str()
+        other.0.content_eq_str(self)
     }
 }
 
 impl PartialEq<&str> for CharStr {
     #[inline]
     fn eq(&self, other: &&str) -> bool {
-        self.as_str() == *other
+        self.0.content_eq_str(other)
     }
 }
 
 impl PartialEq<CharStr> for &str {
     #[inline]
     fn eq(&self, other: &CharStr) -> bool {
-        *self == other.as_str()
+        other.0.content_eq_str(self)
     }
 }
 
 impl PartialEq<String> for CharStr {
     #[inline]
     fn eq(&self, other: &String) -> bool {
-        self.as_str() == other.as_str()
+        self.0.content_eq_str(other.as_str())
     }
 }
 
 impl PartialEq<CharStr> for String {
     #[inline]
     fn eq(&self, other: &CharStr) -> bool {
-        self.as_str() == other.as_str()
+        other.0.content_eq_str(self.as_str())
     }
 }
 
