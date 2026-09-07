@@ -19,7 +19,7 @@ use core::{
 use alloc::{borrow::Cow, boxed::Box, string::String};
 
 #[cfg(feature = "std")]
-use std::ffi::OsStr;
+use std::{ffi::OsStr, path::Path};
 
 mod repr;
 use repr::Repr;
@@ -1151,6 +1151,14 @@ impl AsRef<OsStr> for CharString {
     }
 }
 
+#[cfg(feature = "std")]
+impl AsRef<Path> for CharString {
+    #[inline]
+    fn as_ref(&self) -> &Path {
+        Path::new(self.as_str())
+    }
+}
+
 impl AsRef<[u8]> for CharString {
     #[inline]
     fn as_ref(&self) -> &[u8] {
@@ -1394,6 +1402,34 @@ impl FromIterator<CharString> for CharString {
     }
 }
 
+impl FromIterator<CharStr> for CharString {
+    fn from_iter<T: IntoIterator<Item = CharStr>>(iter: T) -> Self {
+        let mut iter = iter.into_iter();
+        let Some(first) = iter.next() else {
+            return CharString::new();
+        };
+        let mut buf = first.into_char_string();
+        buf.extend(iter);
+        buf
+    }
+}
+
+impl FromIterator<CharString> for String {
+    fn from_iter<T: IntoIterator<Item = CharString>>(iter: T) -> Self {
+        let mut buf = String::new();
+        buf.extend(iter);
+        buf
+    }
+}
+
+impl FromIterator<CharStr> for String {
+    fn from_iter<T: IntoIterator<Item = CharStr>>(iter: T) -> Self {
+        let mut buf = String::new();
+        buf.extend(iter);
+        buf
+    }
+}
+
 impl Extend<char> for CharString {
     fn extend<T: IntoIterator<Item = char>>(&mut self, iter: T) {
         let iter = iter.into_iter();
@@ -1448,6 +1484,22 @@ impl Extend<CharString> for CharString {
 
 impl Extend<CharString> for String {
     fn extend<T: IntoIterator<Item = CharString>>(&mut self, iter: T) {
+        for s in iter {
+            self.push_str(&s);
+        }
+    }
+}
+
+impl Extend<CharStr> for CharString {
+    fn extend<T: IntoIterator<Item = CharStr>>(&mut self, iter: T) {
+        for s in iter {
+            self.push_str(&s);
+        }
+    }
+}
+
+impl Extend<CharStr> for String {
+    fn extend<T: IntoIterator<Item = CharStr>>(&mut self, iter: T) {
         for s in iter {
             self.push_str(&s);
         }

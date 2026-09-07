@@ -3,7 +3,7 @@ use core::{borrow::Borrow, cmp, fmt, hash::Hash, hash::Hasher, mem, ops::Deref, 
 use alloc::{borrow::Cow, boxed::Box, string::String};
 
 #[cfg(feature = "std")]
-use std::ffi::OsStr;
+use std::{ffi::OsStr, path::Path};
 
 use crate::{CharString, Repr, ReserveError, UnwrapWithMsg};
 
@@ -283,6 +283,14 @@ impl AsRef<OsStr> for CharStr {
     }
 }
 
+#[cfg(feature = "std")]
+impl AsRef<Path> for CharStr {
+    #[inline]
+    fn as_ref(&self) -> &Path {
+        Path::new(self.as_str())
+    }
+}
+
 impl AsRef<[u8]> for CharStr {
     #[inline]
     fn as_ref(&self) -> &[u8] {
@@ -481,5 +489,27 @@ impl FromIterator<char> for CharStr {
 impl<'a> FromIterator<&'a char> for CharStr {
     fn from_iter<T: IntoIterator<Item = &'a char>>(iter: T) -> Self {
         iter.into_iter().copied().collect()
+    }
+}
+
+impl FromIterator<CharString> for CharStr {
+    fn from_iter<T: IntoIterator<Item = CharString>>(iter: T) -> Self {
+        CharString::from_iter(iter).freeze()
+    }
+}
+
+impl FromIterator<CharStr> for CharStr {
+    fn from_iter<T: IntoIterator<Item = CharStr>>(iter: T) -> Self {
+        let mut iter = iter.into_iter();
+        let Some(first) = iter.next() else {
+            return CharStr::new();
+        };
+        let Some(second) = iter.next() else {
+            return first;
+        };
+        let mut buf = first.into_char_string();
+        buf.push_str(&second);
+        buf.extend(iter);
+        buf.freeze()
     }
 }
