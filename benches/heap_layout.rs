@@ -7,13 +7,15 @@ use criterion::{
     measurement::WallTime,
 };
 
+const CONSTRUCTION_LENGTHS: [usize; 19] =
+    [0, 1, 2, 3, 4, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 24, 32, 48, 64];
 const STRING_LENGTHS: [usize; 10] = [11, 12, 13, 15, 16, 17, 24, 32, 48, 64];
 const VECTOR_LEN: usize = 16_384;
 
 fn construction(c: &mut Criterion) {
     let mut construction = c.benchmark_group("heap_layout/construction");
 
-    for len in STRING_LENGTHS {
+    for len in CONSTRUCTION_LENGTHS {
         let text = "a".repeat(len);
 
         construction.throughput(Throughput::Elements(VECTOR_LEN as u64));
@@ -50,7 +52,7 @@ fn clone_drop(c: &mut Criterion) {
 fn immutable_construction(c: &mut Criterion) {
     let mut construction = c.benchmark_group("heap_layout/char_str_construction");
 
-    for len in STRING_LENGTHS {
+    for len in CONSTRUCTION_LENGTHS {
         let text = "a".repeat(len);
 
         construction.throughput(Throughput::Elements(VECTOR_LEN as u64));
