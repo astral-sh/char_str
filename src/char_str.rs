@@ -180,6 +180,26 @@ impl CharStr {
         self.0.heap_allocation_size()
     }
 
+    /// Returns the underlying static string, if this value uses static storage.
+    ///
+    /// Short inputs to [`CharStr::from_static_str`] are copied into inline storage
+    /// and return `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use char_str::CharStr;
+    /// let text = "a string longer than the inline limit";
+    /// assert_eq!(CharStr::from_static_str(text).as_static_str(), Some(text));
+    /// assert_eq!(CharStr::from(text).as_static_str(), None);
+    /// assert_eq!(CharStr::from_static_str("short").as_static_str(), None);
+    /// ```
+    #[inline]
+    #[must_use]
+    pub const fn as_static_str(&self) -> Option<&'static str> {
+        self.0.as_static_str()
+    }
+
     /// Converts this value into a mutable [`CharString`].
     ///
     /// Unique exact heap storage is converted to growable storage with `realloc`. Shared heap

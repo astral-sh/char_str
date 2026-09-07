@@ -283,6 +283,16 @@ impl Repr {
     }
 
     #[inline]
+    pub(crate) const fn as_static_str(&self) -> Option<&'static str> {
+        if self.is_static_buffer() {
+            // SAFETY: The discriminant identifies a live static buffer.
+            Some(unsafe { self.as_static_buffer() }.as_str())
+        } else {
+            None
+        }
+    }
+
+    #[inline]
     pub(crate) fn content_eq(&self, other: &Self) -> bool {
         let this = self.as_bytes();
         let other = other.as_bytes();

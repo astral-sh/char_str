@@ -1058,6 +1058,26 @@ impl CharString {
         self.0.is_heap_buffer()
     }
 
+    /// Returns the underlying static string, if this value uses static storage.
+    ///
+    /// Short inputs to [`CharString::from_static_str`] are copied into inline storage
+    /// and return `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use char_str::CharString;
+    /// let text = "a string longer than the inline limit";
+    /// assert_eq!(CharString::from_static_str(text).as_static_str(), Some(text));
+    /// assert_eq!(CharString::from(text).as_static_str(), None);
+    /// assert_eq!(CharString::from_static_str("short").as_static_str(), None);
+    /// ```
+    #[inline]
+    #[must_use]
+    pub const fn as_static_str(&self) -> Option<&'static str> {
+        self.0.as_static_str()
+    }
+
     #[cfg(feature = "get-size")]
     pub(crate) fn heap_allocation_size(&self) -> usize {
         self.0.heap_allocation_size()
