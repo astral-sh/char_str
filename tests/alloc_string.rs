@@ -41,11 +41,13 @@ fn test_from_cow_str() {
     assert_eq!(CharString::from(Cow::Owned(String::from("string"))), "string");
 }
 
-// #[test]
-// fn test_unsized_to_string() {
-//     let s: &str = "abc";
-//     let _: String = (*s).to_string();
-// }
+#[test]
+fn test_unsized_to_string() {
+    for s in ["", "abc", "ศไทย中华Việt Nam; foobar"] {
+        assert_eq!((*s).to_char_string(), s);
+        assert_eq!(<str as ToCharString>::try_to_char_string(s).unwrap(), s);
+    }
+}
 
 #[test]
 fn test_from_utf8() {
