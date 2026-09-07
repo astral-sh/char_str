@@ -414,7 +414,12 @@ impl Repr {
         // - `0..(len + str_len)` is initialized.
         unsafe {
             let data = self.as_mut_ptr();
-            ptr::copy_nonoverlapping(string.as_ptr(), data.add(len), str_len);
+            if self.is_heap_buffer() {
+                ptr::copy_nonoverlapping(string.as_ptr(), data.add(len), str_len);
+            } else {
+                // `reserve` left this buffer inline, so the appended text fits inline too.
+                inline_buffer::copy_inline_bytes(string.as_ptr(), data.add(len), str_len);
+            }
             self.set_len(len + str_len);
         }
 

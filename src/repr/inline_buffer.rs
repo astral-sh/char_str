@@ -81,40 +81,12 @@ impl InlineBuffer {
         let mut buffer = [0u8; MAX_INLINE_SIZE];
         buffer[MAX_INLINE_SIZE - 1] = len as u8 | LastByte::MASK_1100_0000;
 
-        // A `copy_nonoverlapping` with a runtime length emits a `memcpy` call, which is far too
-        // expensive for a copy this short. Constant-size copies are inlined instead: for
-        // `n <= len <= 2 * n`, a pair of `n`-byte copies taken from either end covers `0..len`
-        // exactly, so halving `n` down from `MAX_INLINE_SIZE / 2` reaches every length that fits.
-        //
-        // `len == MAX_INLINE_SIZE` is peeled off first. It is the one length whose copy overwrites
-        // the length byte written above, and peeling it lets the optimizer see that the remaining
-        // copies never touch that byte.
-        //
         // SAFETY:
         // - Every copy stays within `0..len`, for which src (`text`) is valid, and dst (`buffer`)
         //   is valid because `len <= MAX_INLINE_SIZE`.
         // - Both src and dst is aligned for u8.
         // - src and dst don't overlap because we created dst.
-        unsafe {
-            let src = text.as_ptr();
-            let dst = buffer.as_mut_ptr();
-            if len == MAX_INLINE_SIZE {
-                ptr::copy_nonoverlapping(src, dst, MAX_INLINE_SIZE);
-            } else if len >= MAX_INLINE_SIZE / 2 {
-                const N: usize = MAX_INLINE_SIZE / 2;
-                ptr::copy_nonoverlapping(src, dst, N);
-                ptr::copy_nonoverlapping(src.add(len - N), dst.add(len - N), N);
-            } else if len >= 4 {
-                // Unreachable where `MAX_INLINE_SIZE / 2 == 4`; folded away at compile time.
-                ptr::copy_nonoverlapping(src, dst, 4);
-                ptr::copy_nonoverlapping(src.add(len - 4), dst.add(len - 4), 4);
-            } else if len >= 2 {
-                ptr::copy_nonoverlapping(src, dst, 2);
-                ptr::copy_nonoverlapping(src.add(len - 2), dst.add(len - 2), 2);
-            } else if len == 1 {
-                *dst = *src;
-            }
-        }
+        unsafe { copy_inline_bytes(text.as_ptr(), buffer.as_mut_ptr(), len) };
 
         Self(buffer)
     }
@@ -146,6 +118,7 @@ impl InlineBuffer {
         Ok(buffer)
     }
 
+    #[inline]
     fn copy_part(
         &mut self,
         text: &str,
@@ -160,7 +133,7 @@ impl InlineBuffer {
         // SAFETY: The bounds check above proves the destination is valid for `text.len()` bytes.
         // The source is a valid string slice and cannot overlap this stack buffer.
         unsafe {
-            ptr::copy_nonoverlapping(text.as_ptr(), self.0.as_mut_ptr().add(*offset), text.len());
+            copy_inline_bytes(text.as_ptr(), self.0.as_mut_ptr().add(*offset), text.len());
         }
         *offset = end;
         Ok(())
@@ -180,6 +153,41 @@ impl InlineBuffer {
 
         if len < MAX_INLINE_SIZE {
             self.0[MAX_INLINE_SIZE - 1] = len as u8 | LastByte::MASK_1100_0000;
+        }
+    }
+}
+
+/// Copies at most one inline buffer's worth of bytes using constant-size operations.
+///
+/// # Safety
+///
+/// - `len` must be less than or equal to `MAX_INLINE_SIZE`.
+/// - `src` and `dst` must be valid for reading and writing `len` bytes, respectively.
+/// - The source and destination ranges must not overlap.
+#[inline]
+pub(super) const unsafe fn copy_inline_bytes(src: *const u8, dst: *mut u8, len: usize) {
+    debug_assert!(len <= MAX_INLINE_SIZE);
+
+    // A runtime-length copy can emit `memcpy`. For `n <= len <= 2 * n`, two constant-size
+    // n-byte copies from either end cover exactly `0..len` and are inlined by the compiler.
+    // Peel off a full buffer so the remaining copies cannot overwrite a trailing length byte.
+    // SAFETY: Each copy stays within the caller-provided, nonoverlapping `len`-byte ranges.
+    unsafe {
+        if len == MAX_INLINE_SIZE {
+            ptr::copy_nonoverlapping(src, dst, MAX_INLINE_SIZE);
+        } else if len >= MAX_INLINE_SIZE / 2 {
+            const N: usize = MAX_INLINE_SIZE / 2;
+            ptr::copy_nonoverlapping(src, dst, N);
+            ptr::copy_nonoverlapping(src.add(len - N), dst.add(len - N), N);
+        } else if len >= 4 {
+            // Unreachable where `MAX_INLINE_SIZE / 2 == 4`; folded away at compile time.
+            ptr::copy_nonoverlapping(src, dst, 4);
+            ptr::copy_nonoverlapping(src.add(len - 4), dst.add(len - 4), 4);
+        } else if len >= 2 {
+            ptr::copy_nonoverlapping(src, dst, 2);
+            ptr::copy_nonoverlapping(src.add(len - 2), dst.add(len - 2), 2);
+        } else if len == 1 {
+            *dst = *src;
         }
     }
 }
