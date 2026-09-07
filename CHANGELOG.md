@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-09-07
+
+### Added
+
+- Added `ToCharString` for `str`. ([#33](https://github.com/astral-sh/char_str/pull/33))
+- Added owned-string collection conversions, `Extend<CharStr>`, and `AsRef<Path>` for both compact string types. ([#34](https://github.com/astral-sh/char_str/pull/34))
+- Added const `as_static_str()` methods to recover static string slices. ([#35](https://github.com/astral-sh/char_str/pull/35))
+
+### Changed
+
+- Replaced runtime `memcpy` calls in inline construction with word loads or fixed-size copies. ([#36](https://github.com/astral-sh/char_str/pull/36))
+
 ## [0.0.3] - 2026-09-07
 
 ### Changed
@@ -27,7 +39,8 @@
 - Renamed `LeanString` to `CharString` and `LeanStr` to `CharStr`.
 - Added optional `salsa` and `get-size` integrations for ty.
 
-[Unreleased]: https://github.com/astral-sh/char_str/compare/v0.0.3...HEAD
+[Unreleased]: https://github.com/astral-sh/char_str/compare/v0.0.4...HEAD
+[0.0.4]: https://github.com/astral-sh/char_str/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/astral-sh/char_str/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/astral-sh/char_str/compare/0.0.1...v0.0.2
 [0.0.1]: https://github.com/astral-sh/char_str/releases/tag/0.0.1
