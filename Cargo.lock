@@ -359,9 +359,9 @@ dependencies = [
 
 [[package]]
 name = "get-size2"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4d338de392104417fe6fdbe588c52383b9236956d8afe5654f0077176edc632"
+checksum = "0612c70bfddc3e0bbdc94256fcaa93234a31a428a4982e13072c92315a725356"
 
 [[package]]
 name = "getrandom"
